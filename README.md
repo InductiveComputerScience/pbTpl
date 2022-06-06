@@ -26,7 +26,7 @@ There are three main issues with using templates:
 #### The data model
 Generate all the data that is to be filled into the document. This includes decision variables if some information is included or left out based on conditions.
 
-#### Tempaltes
+#### Templates
 Write the template with the tags to fill in information. There is no need for complex logic or formatting commands, as this should be taken care of during data model generation. The reason is that the code should be in the code and not in the template.
 
 #### Locale and Formatting
