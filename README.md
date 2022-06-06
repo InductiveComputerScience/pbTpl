@@ -11,11 +11,8 @@ A template library available in many programming languages. Goals of this librar
 [C](C/) | 
 [C++](Cpp/) | 
 [JavaScript](JavaScript/) | 
-[//]: # "[TypeScript](TypeScript/) | "
 [PHP](PHP/) | 
-[//]: # "[C#](CS/) | "
 [Python](Python/) | 
-[//]: # "[Visual Basic](VisualBasic/) |"
 [Ruby](Ruby/)
 
 ## General User Guide
