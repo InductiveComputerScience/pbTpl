@@ -168,7 +168,26 @@ function GenerateTokensFromTemplate(template, tokens, errorMessage){
 
   return success;
 }
-function GenerateDocument(template, data, document, errorMessage){
+function GenerateDocument(template, json, document, errorMessage){
+  var data;
+  var errorMessages;
+  var success;
+
+  data = {};
+  errorMessages = {};
+
+  success = ReadJSON(json, data, errorMessages);
+
+  if(success){
+    success = GenerateDocumentBasedOnElement(template, data.element, document, errorMessage);
+  }else{
+    errorMessage.string = JoinStringsWithSeparator(errorMessages.stringArray, ", ".split(''));
+    FreeStringArrayReference(errorMessages);
+  }
+
+  return success;
+}
+function GenerateDocumentBasedOnElement(template, data, document, errorMessage){
   var ll;
   var success;
   var tokens;
@@ -249,7 +268,7 @@ function GenerateDocumentFromNode(n, data, ll, errorMessage){
       }else{
         success = false;
         errorMessage.string = "Key for printing not found in JSON object: ".split('');
-        errorMessage.string = sConcatenateString(errorMessage.string, n.p1);
+        errorMessage.string = ConcatenateString(errorMessage.string, n.p1);
       }
     }else{
       success = false;
@@ -311,7 +330,7 @@ function GenerateDocumentFromIf(n, data, ll, errorMessage){
     }else{
       success = false;
       errorMessage.string = "Key for if not found in JSON object: ".split('');
-      errorMessage.string = sConcatenateString(errorMessage.string, n.p1);
+      errorMessage.string = ConcatenateString(errorMessage.string, n.p1);
     }
   }else{
     success = false;
@@ -354,7 +373,7 @@ function GenerateDocumentFromForeach(n, data, ll, errorMessage){
     }else{
       success = false;
       errorMessage.string = "Key for foreach not found in JSON object: ".split('');
-      errorMessage.string = sConcatenateString(errorMessage.string, n.p2);
+      errorMessage.string = ConcatenateString(errorMessage.string, n.p2);
     }
   }else{
     success = false;
@@ -564,8 +583,8 @@ function ParseNodeString(token, node, errorMessage){
   }else if(token[0] != '{'){
     isText = true;
   }else{
-    command = strSubstring(token, 1, token.length - 1);
-    parts = sSplitByCharacter(command, ' ');
+    command = Substring(token, 1, token.length - 1);
+    parts = SplitByCharacter(command, ' ');
 
     if(command.length > 0){
       if(StringsEqual(parts[0].string, "use".split(''))){
@@ -630,12 +649,12 @@ function ParseNodeString(token, node, errorMessage){
 
   if(isText){
     node.type = "text".split('');
-    node.p1 = sReplaceString(token, "\\{print ".split(''), "{print ".split(''));
-    node.p1 = sReplaceString(node.p1, "\\{use ".split(''), "{use ".split(''));
-    node.p1 = sReplaceString(node.p1, "\\{if ".split(''), "{if ".split(''));
-    node.p1 = sReplaceString(node.p1, "\\{end}".split(''), "{end}".split(''));
-    node.p1 = sReplaceString(node.p1, "\\{foreach ".split(''), "{foreach ".split(''));
-    node.p1 = sReplaceString(node.p1, "\\{else}".split(''), "{else}".split(''));
+    node.p1 = ReplaceString(token, "\\{print ".split(''), "{print ".split(''));
+    node.p1 = ReplaceString(node.p1, "\\{use ".split(''), "{use ".split(''));
+    node.p1 = ReplaceString(node.p1, "\\{if ".split(''), "{if ".split(''));
+    node.p1 = ReplaceString(node.p1, "\\{end}".split(''), "{end}".split(''));
+    node.p1 = ReplaceString(node.p1, "\\{foreach ".split(''), "{foreach ".split(''));
+    node.p1 = ReplaceString(node.p1, "\\{else}".split(''), "{else}".split(''));
   }
 
   return success;
@@ -654,8 +673,27 @@ function test(){
   testGenerateDocument5(failures);
   testGenerateDocument6(failures);
   testGenerateDocument7(failures);
+  testGenerateDocument8(failures);
 
   return failures.numberValue;
+}
+function testGenerateDocument8(failures){
+  var document, errorMessage;
+  var success;
+  var template, json;
+
+  document = {};
+  errorMessage = {};
+
+  template = "This is a test: {print b} {foreach x in a}{print x}{end}.".split('');
+  json = "{\"a\": [1, 2, 3], \"b\": 4}".split('');
+  success = GenerateDocument(template, json, document, errorMessage);
+
+  if(success){
+    AssertStringEquals("This is a test: 4 123.".split(''), document.string, failures);
+  }
+
+  AssertTrue(success, failures);
 }
 function testTokenGeneration(failures){
   var template;
@@ -759,7 +797,7 @@ function AssertTemplateResult(template, json, result, failures){
   AssertTrue(success, failures);
 
   if(success){
-    success = GenerateDocument(template, data.element, document, errorMessage);
+    success = GenerateDocumentBasedOnElement(template, data.element, document, errorMessage);
 
     AssertTrue(success, failures);
 
@@ -785,7 +823,7 @@ function AssertTemplateError(template, json, errorMessage, failures){
   AssertTrue(success, failures);
 
   if(success){
-    success = GenerateDocument(template, data.element, document, errorMessageRef);
+    success = GenerateDocumentBasedOnElement(template, data.element, document, errorMessageRef);
 
     AssertFalse(success, failures);
 
@@ -950,7 +988,7 @@ function JSONTokenize(json, tokensReference, errorMessages){
   var success;
   var ll;
 
-  ll = lCreateLinkedListString();
+  ll = CreateLinkedListString();
   success = true;
 
   stringLength = {};
@@ -960,39 +998,39 @@ function JSONTokenize(json, tokensReference, errorMessages){
     c = json[i];
 
     if(c == '{'){
-      lLinkedListAddString(ll, "{".split(''));
+      LinkedListAddString(ll, "{".split(''));
       i = i + 1;
     }else if(c == '}'){
-      lLinkedListAddString(ll, "}".split(''));
+      LinkedListAddString(ll, "}".split(''));
       i = i + 1;
     }else if(c == '['){
-      lLinkedListAddString(ll, "[".split(''));
+      LinkedListAddString(ll, "[".split(''));
       i = i + 1;
     }else if(c == ']'){
-      lLinkedListAddString(ll, "]".split(''));
+      LinkedListAddString(ll, "]".split(''));
       i = i + 1;
     }else if(c == ':'){
-      lLinkedListAddString(ll, ":".split(''));
+      LinkedListAddString(ll, ":".split(''));
       i = i + 1;
     }else if(c == ','){
-      lLinkedListAddString(ll, ",".split(''));
+      LinkedListAddString(ll, ",".split(''));
       i = i + 1;
     }else if(c == 'f'){
       success = GetJSONPrimitiveName(json, i, errorMessages, "false".split(''), tokenReference);
       if(success){
-        lLinkedListAddString(ll, "false".split(''));
+        LinkedListAddString(ll, "false".split(''));
         i = i + "false".split('').length;
       }
     }else if(c == 't'){
       success = GetJSONPrimitiveName(json, i, errorMessages, "true".split(''), tokenReference);
       if(success){
-        lLinkedListAddString(ll, "true".split(''));
+        LinkedListAddString(ll, "true".split(''));
         i = i + "true".split('').length;
       }
     }else if(c == 'n'){
       success = GetJSONPrimitiveName(json, i, errorMessages, "null".split(''), tokenReference);
       if(success){
-        lLinkedListAddString(ll, "null".split(''));
+        LinkedListAddString(ll, "null".split(''));
         i = i + "null".split('').length;
       }
     }else if(c == ' ' || c == '\n' || c == '\t' || c == '\r'){
@@ -1001,28 +1039,28 @@ function JSONTokenize(json, tokensReference, errorMessages){
     }else if(c == '\"'){
       success = GetJSONString(json, i, tokenReference, stringLength, errorMessages);
       if(success){
-        lLinkedListAddString(ll, tokenReference.string);
+        LinkedListAddString(ll, tokenReference.string);
         i = i + stringLength.numberValue;
       }
     }else if(IsJSONNumberCharacter(c)){
       success = GetJSONNumberToken(json, i, tokenReference, errorMessages);
       if(success){
-        lLinkedListAddString(ll, tokenReference.string);
+        LinkedListAddString(ll, tokenReference.string);
         i = i + tokenReference.string.length;
       }
     }else{
-      str = strConcatenateCharacter("Invalid start of Token: ".split(''), c);
+      str = ConcatenateCharacter("Invalid start of Token: ".split(''), c);
       stringReference = CreateStringReference(str);
-      lAddStringRef(errorMessages, stringReference);
+      AddStringRef(errorMessages, stringReference);
       i = i + 1;
       success = false;
     }
   }
 
   if(success){
-    lLinkedListAddString(ll, "<end>".split(''));
-    tokensReference.stringArray = lLinkedListStringsToArray(ll);
-    lFreeLinkedListString(ll);
+    LinkedListAddString(ll, "<end>".split(''));
+    tokensReference.stringArray = LinkedListStringsToArray(ll);
+    FreeLinkedListString(ll);
   }
 
   return success;
@@ -1044,7 +1082,7 @@ function GetJSONNumberToken(json, start, tokenReference, errorMessages){
     }
   }
 
-  numberString = strSubstring(json, start, end);
+  numberString = Substring(json, start, end);
 
   success = IsValidJSONNumber(numberString, errorMessages);
 
@@ -1067,7 +1105,7 @@ function IsValidJSONNumber(n, errorMessages){
     success = IsValidJSONNumberAfterSign(n, i, errorMessages);
   }else{
     success = false;
-    lAddStringRef(errorMessages, CreateStringReference("Number must contain at least one digit.".split('')));
+    AddStringRef(errorMessages, CreateStringReference("Number must contain at least one digit.".split('')));
   }
 
   return success;
@@ -1092,7 +1130,7 @@ function IsValidJSONNumberAfterSign(n, i, errorMessages){
     }
   }else{
     success = false;
-    lAddStringRef(errorMessages, CreateStringReference("A number must start with 0-9 (after the optional sign).".split('')));
+    AddStringRef(errorMessages, CreateStringReference("A number must start with 0-9 (after the optional sign).".split('')));
   }
 
   return success;
@@ -1133,11 +1171,11 @@ function IsValidJSONNumberFromDotOrExponent(n, i, errorMessages){
         }
       }else{
         success = false;
-        lAddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point.".split('')));
+        AddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point.".split('')));
       }
     }else{
       success = false;
-      lAddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point.".split('')));
+      AddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point.".split('')));
     }
   }
 
@@ -1147,20 +1185,20 @@ function IsValidJSONNumberFromDotOrExponent(n, i, errorMessages){
       success = IsValidJSONNumberFromExponent(n, i, errorMessages);
     }else{
       success = false;
-      lAddStringRef(errorMessages, CreateStringReference("Expected e or E.".split('')));
+      AddStringRef(errorMessages, CreateStringReference("Expected e or E.".split('')));
     }
   }else if(i == n.length && success){
     /* If number with decimal point. */
     success = true;
   }else{
     success = false;
-    lAddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point.".split('')));
+    AddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point.".split('')));
   }
 
   if(wasDotAndOrE){
   }else{
     success = false;
-    lAddStringRef(errorMessages, CreateStringReference("Exprected decimal point or e or E.".split('')));
+    AddStringRef(errorMessages, CreateStringReference("Exprected decimal point or e or E.".split('')));
   }
 
   return success;
@@ -1186,19 +1224,19 @@ function IsValidJSONNumberFromExponent(n, i, errorMessages){
           success = true;
         }else{
           success = false;
-          lAddStringRef(errorMessages, CreateStringReference("There was characters following the exponent.".split('')));
+          AddStringRef(errorMessages, CreateStringReference("There was characters following the exponent.".split('')));
         }
       }else{
         success = false;
-        lAddStringRef(errorMessages, CreateStringReference("There must be a digit following the optional exponent sign.".split('')));
+        AddStringRef(errorMessages, CreateStringReference("There must be a digit following the optional exponent sign.".split('')));
       }
     }else{
       success = false;
-      lAddStringRef(errorMessages, CreateStringReference("There must be a digit following optional the exponent sign.".split('')));
+      AddStringRef(errorMessages, CreateStringReference("There must be a digit following optional the exponent sign.".split('')));
     }
   }else{
     success = false;
-    lAddStringRef(errorMessages, CreateStringReference("There must be a sign or a digit following e or E.".split('')));
+    AddStringRef(errorMessages, CreateStringReference("There must be a sign or a digit following e or E.".split('')));
   }
 
   return success;
@@ -1241,12 +1279,12 @@ function GetJSONPrimitiveName(string, start, errorMessages, primitive, tokenRefe
       }
     }else{
       str = "".split('');
-      str = strConcatenateString(str, "Primitive invalid: ".split(''));
-      str = strAppendCharacter(str, c);
-      str = strAppendString(str, " vs ".split(''));
-      str = strAppendCharacter(str, p);
+      str = ConcatenateString(str, "Primitive invalid: ".split(''));
+      str = AppendCharacter(str, c);
+      str = AppendString(str, " vs ".split(''));
+      str = AppendCharacter(str, p);
 
-      lAddStringRef(errorMessages, CreateStringReference(str));
+      AddStringRef(errorMessages, CreateStringReference(str));
       done = true;
       success = false;
     }
@@ -1263,7 +1301,7 @@ function GetJSONPrimitiveName(string, start, errorMessages, primitive, tokenRefe
       token = "null".split('');
     }
   }else{
-    lAddStringRef(errorMessages, CreateStringReference("Primitive invalid".split('')));
+    AddStringRef(errorMessages, CreateStringReference("Primitive invalid".split('')));
     success = false;
   }
 
@@ -1340,7 +1378,7 @@ function GetJSONString(json, start, tokenReference, stringLengthReference, error
     tokenReference.string = string;
     success = true;
   }else{
-    lAddStringRef(errorMessages, CreateStringReference("End of string was not found.".split('')));
+    AddStringRef(errorMessages, CreateStringReference("End of string was not found.".split('')));
     success = false;
   }
 
@@ -1381,22 +1419,22 @@ function IsValidJSONStringInJSON(json, start, characterCount, stringLengthRefere
                 if(nCharacterIsNumberCharacterInBase(c, 16) || c == 'a' || c == 'b' || c == 'c' || c == 'd' || c == 'e' || c == 'f'){
                 }else{
                   success = false;
-                  lAddStringRef(errorMessages, CreateStringReference("\\u must be followed by four hexadecimal digits.".split('')));
+                  AddStringRef(errorMessages, CreateStringReference("\\u must be followed by four hexadecimal digits.".split('')));
                 }
               }
               characterCount.numberValue = characterCount.numberValue + 1;
               i = i + 4;
             }else{
               success = false;
-              lAddStringRef(errorMessages, CreateStringReference("\\u must be followed by four characters.".split('')));
+              AddStringRef(errorMessages, CreateStringReference("\\u must be followed by four characters.".split('')));
             }
           }else{
             success = false;
-            lAddStringRef(errorMessages, CreateStringReference("Escaped character invalid.".split('')));
+            AddStringRef(errorMessages, CreateStringReference("Escaped character invalid.".split('')));
           }
         }else{
           success = false;
-          lAddStringRef(errorMessages, CreateStringReference("There must be at least two character after string escape.".split('')));
+          AddStringRef(errorMessages, CreateStringReference("There must be at least two character after string escape.".split('')));
         }
       }else if(json[i] == '\"'){
         characterCount.numberValue = characterCount.numberValue + 1;
@@ -1406,7 +1444,7 @@ function IsValidJSONStringInJSON(json, start, characterCount, stringLengthRefere
       }
     }else{
       success = false;
-      lAddStringRef(errorMessages, CreateStringReference("Unicode code points 0-31 not allowed in JSON string.".split('')));
+      AddStringRef(errorMessages, CreateStringReference("Unicode code points 0-31 not allowed in JSON string.".split('')));
     }
   }
 
@@ -1414,7 +1452,7 @@ function IsValidJSONStringInJSON(json, start, characterCount, stringLengthRefere
     stringLengthReference.numberValue = i - start;
   }else{
     success = false;
-    lAddStringRef(errorMessages, CreateStringReference("String must end with \".".split('')));
+    AddStringRef(errorMessages, CreateStringReference("String must end with \".".split('')));
   }
 
   return success;
@@ -1576,12 +1614,16 @@ function ComputeJSONNumberStringLength(element){
   var lengthx;
   var a;
 
-  if(Math.abs(element.number) >= Math.pow(10, 15) || Math.abs(element.number) <= Math.pow(10,  -15)){
-    a = nCreateStringScientificNotationDecimalFromNumber(element.number);
-    lengthx = a.length;
+  if(element.number != 0){
+    if(Math.abs(element.number) >= Math.pow(10, 15) || Math.abs(element.number) <= Math.pow(10,  -15)){
+      a = nCreateStringScientificNotationDecimalFromNumber(element.number);
+      lengthx = a.length;
+    }else{
+      a = nCreateStringDecimalFromNumber(element.number);
+      lengthx = a.length;
+    }
   }else{
-    a = nCreateStringDecimalFromNumber(element.number);
-    lengthx = a.length;
+    lengthx = 1;
   }
 
   return lengthx;
@@ -1740,7 +1782,7 @@ function WriteJSON(element){
   }else if(StringsEqual(element.type, "number".split(''))){
     WriteNumber(element, result, index);
   }else if(StringsEqual(element.type, "null".split(''))){
-    strWriteStringToStingStream(result, index, "null".split(''));
+    WriteStringToStingStream(result, index, "null".split(''));
   }else if(StringsEqual(element.type, "boolean".split(''))){
     WriteBooleanValue(element, result, index);
   }
@@ -1749,47 +1791,51 @@ function WriteJSON(element){
 }
 function WriteBooleanValue(element, result, index){
   if(element.booleanValue){
-    strWriteStringToStingStream(result, index, "true".split(''));
+    WriteStringToStingStream(result, index, "true".split(''));
   }else{
-    strWriteStringToStingStream(result, index, "false".split(''));
+    WriteStringToStingStream(result, index, "false".split(''));
   }
 }
 function WriteNumber(element, result, index){
   var numberString;
 
-  if(Math.abs(element.number) >= Math.pow(10, 15) || Math.abs(element.number) <= Math.pow(10,  -15)){
-    numberString = nCreateStringScientificNotationDecimalFromNumber(element.number);
+  if(element.number != 0){
+    if(Math.abs(element.number) >= Math.pow(10, 15) || Math.abs(element.number) <= Math.pow(10,  -15)){
+      numberString = nCreateStringScientificNotationDecimalFromNumber(element.number);
+    }else{
+      numberString = nCreateStringDecimalFromNumber(element.number);
+    }
   }else{
     numberString = nCreateStringDecimalFromNumber(element.number);
   }
 
-  strWriteStringToStingStream(result, index, numberString);
+  WriteStringToStingStream(result, index, numberString);
 }
 function WriteArray(element, result, index){
   var s;
   var arrayElement;
   var i;
 
-  strWriteStringToStingStream(result, index, "[".split(''));
+  WriteStringToStingStream(result, index, "[".split(''));
 
   for(i = 0; i < element.array.length; i = i + 1){
     arrayElement = element.array[i];
 
     s = WriteJSON(arrayElement);
-    strWriteStringToStingStream(result, index, s);
+    WriteStringToStingStream(result, index, s);
 
     if(i + 1 != element.array.length){
-      strWriteStringToStingStream(result, index, ",".split(''));
+      WriteStringToStingStream(result, index, ",".split(''));
     }
   }
 
-  strWriteStringToStingStream(result, index, "]".split(''));
+  WriteStringToStingStream(result, index, "]".split(''));
 }
 function WriteString(element, result, index){
-  strWriteStringToStingStream(result, index, "\"".split(''));
+  WriteStringToStingStream(result, index, "\"".split(''));
   element.string = JSONEscapeString(element.string);
-  strWriteStringToStingStream(result, index, element.string);
-  strWriteStringToStingStream(result, index, "\"".split(''));
+  WriteStringToStingStream(result, index, element.string);
+  WriteStringToStingStream(result, index, "\"".split(''));
 }
 function JSONEscapeString(string){
   var i, lengthx;
@@ -1806,9 +1852,9 @@ function JSONEscapeString(string){
   for(i = 0; i < string.length; i = i + 1){
     if(JSONMustBeEscaped(string[i], lettersReference)){
       escaped = JSONEscapeCharacter(string[i]);
-      strWriteStringToStingStream(ns, index, escaped);
+      WriteStringToStingStream(ns, index, escaped);
     }else{
-      strWriteCharacterToStingStream(ns, index, string[i]);
+      WriteCharacterToStingStream(ns, index, string[i]);
     }
   }
 
@@ -1950,7 +1996,7 @@ function WriteObject(element, result, index){
   var keys;
   var objectElement;
 
-  strWriteStringToStingStream(result, index, "{".split(''));
+  WriteStringToStingStream(result, index, "{".split(''));
 
   keys = GetStringElementMapKeySet(element.object);
   for(i = 0; i < keys.stringArray.length; i = i + 1){
@@ -1958,20 +2004,20 @@ function WriteObject(element, result, index){
     key = JSONEscapeString(key);
     objectElement = GetObjectValue(element.object, key);
 
-    strWriteStringToStingStream(result, index, "\"".split(''));
-    strWriteStringToStingStream(result, index, key);
-    strWriteStringToStingStream(result, index, "\"".split(''));
-    strWriteStringToStingStream(result, index, ":".split(''));
+    WriteStringToStingStream(result, index, "\"".split(''));
+    WriteStringToStingStream(result, index, key);
+    WriteStringToStingStream(result, index, "\"".split(''));
+    WriteStringToStingStream(result, index, ":".split(''));
 
     s = WriteJSON(objectElement);
-    strWriteStringToStingStream(result, index, s);
+    WriteStringToStingStream(result, index, s);
 
     if(i + 1 != keys.stringArray.length){
-      strWriteStringToStingStream(result, index, ",".split(''));
+      WriteStringToStingStream(result, index, ",".split(''));
     }
   }
 
-  strWriteStringToStingStream(result, index, "}".split(''));
+  WriteStringToStingStream(result, index, "}".split(''));
 }
 function ReadJSON(string, elementReference, errorMessages){
   var tokenArrayReference;
@@ -2023,21 +2069,21 @@ function GetJSONValueRecursive(tokens, i, depth, elementReference, errorMessages
     elementReference.element = CreateNumberElement(stringToDecimalResult);
     i.numberValue = i.numberValue + 1;
   }else if(token[0] == '\"'){
-    substr = strSubstring(token, 1, token.length - 1);
+    substr = Substring(token, 1, token.length - 1);
     elementReference.element = CreateStringElement(substr);
     i.numberValue = i.numberValue + 1;
   }else{
     str = "".split('');
-    str = strConcatenateString(str, "Invalid token first in value: ".split(''));
-    str = strAppendString(str, token);
-    lAddStringRef(errorMessages, CreateStringReference(str));
+    str = ConcatenateString(str, "Invalid token first in value: ".split(''));
+    str = AppendString(str, token);
+    AddStringRef(errorMessages, CreateStringReference(str));
     success = false;
   }
 
   if(success && depth == 0){
     if(StringsEqual(tokens[i.numberValue].string, "<end>".split(''))){
     }else{
-      lAddStringRef(errorMessages, CreateStringReference("The outer value cannot have any tokens following it.".split('')));
+      AddStringRef(errorMessages, CreateStringReference("The outer value cannot have any tokens following it.".split('')));
       success = false;
     }
   }
@@ -2053,7 +2099,7 @@ function GetJSONObject(tokens, i, depth, elementReference, errorMessages){
   var values;
   var keys;
 
-  keys = lCreateLinkedListString();
+  keys = CreateLinkedListString();
   values = CreateLinkedListElements();
   element = CreateObjectElement(0);
   valueReference = {};
@@ -2074,9 +2120,9 @@ function GetJSONObject(tokens, i, depth, elementReference, errorMessages){
           success = GetJSONValueRecursive(tokens, i, depth, valueReference, errorMessages);
 
           if(success){
-            keystring = strSubstring(key, 1, key.length - 1);
+            keystring = Substring(key, 1, key.length - 1);
             value = valueReference.element;
-            lLinkedListAddString(keys, keystring);
+            LinkedListAddString(keys, keystring);
             LinkedListAddElement(values, value);
 
             comma = tokens[i.numberValue].string;
@@ -2089,15 +2135,15 @@ function GetJSONObject(tokens, i, depth, elementReference, errorMessages){
           }
         }else{
           str = "".split('');
-          str = strConcatenateString(str, "Expected colon after key in object: ".split(''));
-          str = strAppendString(str, colon);
-          lAddStringRef(errorMessages, CreateStringReference(str));
+          str = ConcatenateString(str, "Expected colon after key in object: ".split(''));
+          str = AppendString(str, colon);
+          AddStringRef(errorMessages, CreateStringReference(str));
 
           success = false;
           done = true;
         }
       }else{
-        lAddStringRef(errorMessages, CreateStringReference("Expected string as key in object.".split('')));
+        AddStringRef(errorMessages, CreateStringReference("Expected string as key in object.".split('')));
 
         done = true;
         success = false;
@@ -2112,17 +2158,17 @@ function GetJSONObject(tokens, i, depth, elementReference, errorMessages){
       /* OK */
       delete(element.object.stringListRef.stringArray);
       delete(element.object.elementListRef.array);
-      element.object.stringListRef.stringArray = lLinkedListStringsToArray(keys);
+      element.object.stringListRef.stringArray = LinkedListStringsToArray(keys);
       element.object.elementListRef.array = LinkedListElementsToArray(values);
       elementReference.element = element;
       i.numberValue = i.numberValue + 1;
     }else{
-      lAddStringRef(errorMessages, CreateStringReference("Expected close curly brackets at end of object value.".split('')));
+      AddStringRef(errorMessages, CreateStringReference("Expected close curly brackets at end of object value.".split('')));
       success = false;
     }
   }
 
-  lFreeLinkedListString(keys);
+  FreeLinkedListString(keys);
   FreeLinkedListElements(values);
   delete(valueReference);
 
@@ -2172,7 +2218,7 @@ function GetJSONArray(tokens, i, depth, elementReference, errorMessages){
     delete(element.array);
     element.array = LinkedListElementsToArray(elements);
   }else{
-    lAddStringRef(errorMessages, CreateStringReference("Expected close square bracket at end of array.".split('')));
+    AddStringRef(errorMessages, CreateStringReference("Expected close square bracket at end of array.".split('')));
     success = false;
   }
 
@@ -2216,7 +2262,7 @@ function GetObjectValueWithCheck(stringElementMap, key, foundReference){
   return result;
 }
 function PutStringElementMap(stringElementMap, keystring, value){
-  lAddStringRef(stringElementMap.stringListRef, CreateStringReference(keystring));
+  AddStringRef(stringElementMap.stringListRef, CreateStringReference(keystring));
   AddElementRef(stringElementMap.elementListRef, value);
 }
 function SetStringElementMap(stringElementMap, index, keystring, value){
@@ -3217,6 +3263,39 @@ function LinkedListToDynamicArrayNumbers(ll){
 
   return da;
 }
+function DynamicArrayNumbersIndexOf(arr, n, foundReference){
+  var found;
+  var i;
+
+  found = false;
+  for(i = 0; i < arr.lengthx &&  !found ; i = i + 1){
+    if(arr.array[i] == n){
+      found = true;
+    }
+  }
+  if( !found ){
+    i =  -1;
+  }else{
+    i = i - 1;
+  }
+
+  foundReference.booleanValue = found;
+
+  return i;
+}
+function DynamicArrayNumbersIsInArray(arr, n){
+  var found;
+  var i;
+
+  found = false;
+  for(i = 0; i < arr.lengthx &&  !found ; i = i + 1){
+    if(arr.array[i] == n){
+      found = true;
+    }
+  }
+
+  return found;
+}
 function AddCharacter(list, a){
   var newlist;
   var i;
@@ -3265,7 +3344,7 @@ function GetCharacterRef(list, i){
 function RemoveCharacterRef(list, i){
   list.string = RemoveCharacter(list.string, i);
 }
-function sWriteStringToStingStream(stream, index, src){
+function WriteStringToStingStream(stream, index, src){
   var i;
 
   for(i = 0; i < src.length; i = i + 1){
@@ -3273,22 +3352,22 @@ function sWriteStringToStingStream(stream, index, src){
   }
   index.numberValue = index.numberValue + src.length;
 }
-function sWriteCharacterToStingStream(stream, index, src){
+function WriteCharacterToStingStream(stream, index, src){
   stream[index.numberValue] = src;
   index.numberValue = index.numberValue + 1;
 }
-function sWriteBooleanToStingStream(stream, index, src){
+function WriteBooleanToStingStream(stream, index, src){
   if(src){
-    sWriteStringToStingStream(stream, index, "true".split(''));
+    WriteStringToStingStream(stream, index, "true".split(''));
   }else{
-    sWriteStringToStingStream(stream, index, "false".split(''));
+    WriteStringToStingStream(stream, index, "false".split(''));
   }
 }
-function sSubstringWithCheck(string, from, to, stringReference){
+function SubstringWithCheck(string, from, to, stringReference){
   var success;
 
   if(from >= 0 && from <= string.length && to >= 0 && to <= string.length && from <= to){
-    stringReference.string = sSubstring(string, from, to);
+    stringReference.string = Substring(string, from, to);
     success = true;
   }else{
     success = false;
@@ -3296,7 +3375,7 @@ function sSubstringWithCheck(string, from, to, stringReference){
 
   return success;
 }
-function sSubstring(string, from, to){
+function Substring(string, from, to){
   var n;
   var i, lengthx;
 
@@ -3311,16 +3390,16 @@ function sSubstring(string, from, to){
 
   return n;
 }
-function sAppendString(s1, s2){
+function AppendString(s1, s2){
   var newString;
 
-  newString = sConcatenateString(s1, s2);
+  newString = ConcatenateString(s1, s2);
 
   delete(s1);
 
   return newString;
 }
-function sConcatenateString(s1, s2){
+function ConcatenateString(s1, s2){
   var newString;
   var i;
 
@@ -3337,16 +3416,16 @@ function sConcatenateString(s1, s2){
 
   return newString;
 }
-function sAppendCharacter(string, c){
+function AppendCharacter(string, c){
   var newString;
 
-  newString = sConcatenateCharacter(string, c);
+  newString = ConcatenateCharacter(string, c);
 
   delete(string);
 
   return newString;
 }
-function sConcatenateCharacter(string, c){
+function ConcatenateCharacter(string, c){
   var newString;
   var i;
   newString = [];
@@ -3360,7 +3439,7 @@ function sConcatenateCharacter(string, c){
 
   return newString;
 }
-function sSplitByCharacter(toSplit, splitBy){
+function SplitByCharacter(toSplit, splitBy){
   var split;
   var stringToSplitBy;
 
@@ -3368,13 +3447,13 @@ function sSplitByCharacter(toSplit, splitBy){
   stringToSplitBy.length = 1;
   stringToSplitBy[0] = splitBy;
 
-  split = sSplitByString(toSplit, stringToSplitBy);
+  split = SplitByString(toSplit, stringToSplitBy);
 
   delete(stringToSplitBy);
 
   return split;
 }
-function sIndexOfCharacter(string, character, indexReference){
+function IndexOfCharacter(string, character, indexReference){
   var i;
   var found;
 
@@ -3388,19 +3467,19 @@ function sIndexOfCharacter(string, character, indexReference){
 
   return found;
 }
-function sSubstringEqualsWithCheck(string, from, substring, equalsReference){
+function SubstringEqualsWithCheck(string, from, substring, equalsReference){
   var success;
 
   if(from < string.length){
     success = true;
-    equalsReference.booleanValue = sSubstringEquals(string, from, substring);
+    equalsReference.booleanValue = SubstringEquals(string, from, substring);
   }else{
     success = false;
   }
 
   return success;
 }
-function sSubstringEquals(string, from, substring){
+function SubstringEquals(string, from, substring){
   var i;
   var equal;
 
@@ -3417,13 +3496,13 @@ function sSubstringEquals(string, from, substring){
 
   return equal;
 }
-function sIndexOfString(string, substring, indexReference){
+function IndexOfString(string, substring, indexReference){
   var i;
   var found;
 
   found = false;
   for(i = 0; i < string.length - substring.length + 1 &&  !found ; i = i + 1){
-    if(sSubstringEquals(string, i, substring)){
+    if(SubstringEquals(string, i, substring)){
       found = true;
       indexReference.numberValue = i;
     }
@@ -3431,7 +3510,7 @@ function sIndexOfString(string, substring, indexReference){
 
   return found;
 }
-function sContainsCharacter(string, character){
+function ContainsCharacter(string, character){
   var i;
   var found;
 
@@ -3444,24 +3523,24 @@ function sContainsCharacter(string, character){
 
   return found;
 }
-function sContainsString(string, substring){
-  return sIndexOfString(string, substring, {});
+function ContainsString(string, substring){
+  return IndexOfString(string, substring, {});
 }
-function sToUpperCase(string){
+function ToUpperCase(string){
   var i;
 
   for(i = 0; i < string.length; i = i + 1){
     string[i] = charToUpperCase(string[i]);
   }
 }
-function sToLowerCase(string){
+function ToLowerCase(string){
   var i;
 
   for(i = 0; i < string.length; i = i + 1){
     string[i] = charToLowerCase(string[i]);
   }
 }
-function sEqualsIgnoreCase(a, b){
+function EqualsIgnoreCase(a, b){
   var equal;
   var i;
 
@@ -3478,7 +3557,7 @@ function sEqualsIgnoreCase(a, b){
 
   return equal;
 }
-function sReplaceString(string, toReplace, replaceWith){
+function ReplaceString(string, toReplace, replaceWith){
   var result;
   var i, j;
   var equalsReference;
@@ -3490,7 +3569,7 @@ function sReplaceString(string, toReplace, replaceWith){
   equalsReference = {};
 
   for(i = 0; i < string.length; ){
-    success = sSubstringEqualsWithCheck(string, i, toReplace, equalsReference);
+    success = SubstringEqualsWithCheck(string, i, toReplace, equalsReference);
     if(success){
       success = equalsReference.booleanValue;
     }
@@ -3512,7 +3591,7 @@ function sReplaceString(string, toReplace, replaceWith){
 
   return result;
 }
-function sReplaceCharacterToNew(string, toReplace, replaceWith){
+function ReplaceCharacterToNew(string, toReplace, replaceWith){
   var result;
   var i;
 
@@ -3529,7 +3608,7 @@ function sReplaceCharacterToNew(string, toReplace, replaceWith){
 
   return result;
 }
-function sReplaceCharacter(string, toReplace, replaceWith){
+function ReplaceCharacter(string, toReplace, replaceWith){
   var i;
 
   for(i = 0; i < string.length; i = i + 1){
@@ -3538,7 +3617,7 @@ function sReplaceCharacter(string, toReplace, replaceWith){
     }
   }
 }
-function sTrim(string){
+function Trim(string){
   var result;
   var i, lastWhitespaceLocationStart, lastWhitespaceLocationEnd;
   var firstNonWhitespaceFound;
@@ -3566,7 +3645,7 @@ function sTrim(string){
   }
 
   if(lastWhitespaceLocationStart < lastWhitespaceLocationEnd){
-    result = sSubstring(string, lastWhitespaceLocationStart + 1, lastWhitespaceLocationEnd);
+    result = Substring(string, lastWhitespaceLocationStart + 1, lastWhitespaceLocationEnd);
   }else{
     result = [];
     result.length = 0;
@@ -3574,27 +3653,27 @@ function sTrim(string){
 
   return result;
 }
-function sStartsWith(string, start){
+function StartsWith(string, start){
   var startsWithString;
 
   startsWithString = false;
   if(string.length >= start.length){
-    startsWithString = sSubstringEquals(string, 0, start);
+    startsWithString = SubstringEquals(string, 0, start);
   }
 
   return startsWithString;
 }
-function sEndsWith(string, end){
+function EndsWith(string, end){
   var endsWithString;
 
   endsWithString = false;
   if(string.length >= end.length){
-    endsWithString = sSubstringEquals(string, string.length - end.length, end);
+    endsWithString = SubstringEquals(string, string.length - end.length, end);
   }
 
   return endsWithString;
 }
-function sSplitByString(toSplit, splitBy){
+function SplitByString(toSplit, splitBy){
   var split;
   var next;
   var i;
@@ -3609,7 +3688,7 @@ function sSplitByString(toSplit, splitBy){
   for(i = 0; i < toSplit.length; ){
     c = toSplit[i];
 
-    if(sSubstringEquals(toSplit, i, splitBy)){
+    if(SubstringEquals(toSplit, i, splitBy)){
       n = {};
       n.string = next;
       split = AddString(split, n);
@@ -3617,7 +3696,7 @@ function sSplitByString(toSplit, splitBy){
       next.length = 0;
       i = i + splitBy.length;
     }else{
-      next = sAppendCharacter(next, c);
+      next = AppendCharacter(next, c);
       i = i + 1;
     }
   }
@@ -3628,7 +3707,7 @@ function sSplitByString(toSplit, splitBy){
 
   return split;
 }
-function sStringIsBefore(a, b){
+function StringIsBefore(a, b){
   var before, equal, done;
   var i;
 
@@ -3660,384 +3739,57 @@ function sStringIsBefore(a, b){
 
   return before;
 }
-function strWriteStringToStingStream(stream, index, src){
-  var i;
+function JoinStringsWithSeparator(strings, separator){
+  var result, string;
+  var lengthx, i;
+  var index;
 
-  for(i = 0; i < src.length; i = i + 1){
-    stream[index.numberValue + i] = src[i];
+  index = CreateNumberReference(0);
+
+  lengthx = 0;
+  for(i = 0; i < strings.length; i = i + 1){
+    lengthx = lengthx + strings[i].string.length;
   }
-  index.numberValue = index.numberValue + src.length;
-}
-function strWriteCharacterToStingStream(stream, index, src){
-  stream[index.numberValue] = src;
-  index.numberValue = index.numberValue + 1;
-}
-function strWriteBooleanToStingStream(stream, index, src){
-  if(src){
-    strWriteStringToStingStream(stream, index, "true".split(''));
-  }else{
-    strWriteStringToStingStream(stream, index, "false".split(''));
-  }
-}
-function strSubstringWithCheck(string, from, to, stringReference){
-  var success;
-
-  if(from >= 0 && from <= string.length && to >= 0 && to <= string.length && from <= to){
-    stringReference.string = strSubstring(string, from, to);
-    success = true;
-  }else{
-    success = false;
-  }
-
-  return success;
-}
-function strSubstring(string, from, to){
-  var n;
-  var i, lengthx;
-
-  lengthx = to - from;
-
-  n = [];
-  n.length = lengthx;
-
-  for(i = from; i < to; i = i + 1){
-    n[i - from] = string[i];
-  }
-
-  return n;
-}
-function strAppendString(s1, s2){
-  var newString;
-
-  newString = strConcatenateString(s1, s2);
-
-  delete(s1);
-
-  return newString;
-}
-function strConcatenateString(s1, s2){
-  var newString;
-  var i;
-
-  newString = [];
-  newString.length = s1.length + s2.length;
-
-  for(i = 0; i < s1.length; i = i + 1){
-    newString[i] = s1[i];
-  }
-
-  for(i = 0; i < s2.length; i = i + 1){
-    newString[s1.length + i] = s2[i];
-  }
-
-  return newString;
-}
-function strAppendCharacter(string, c){
-  var newString;
-
-  newString = strConcatenateCharacter(string, c);
-
-  delete(string);
-
-  return newString;
-}
-function strConcatenateCharacter(string, c){
-  var newString;
-  var i;
-  newString = [];
-  newString.length = string.length + 1;
-
-  for(i = 0; i < string.length; i = i + 1){
-    newString[i] = string[i];
-  }
-
-  newString[string.length] = c;
-
-  return newString;
-}
-function strSplitByCharacter(toSplit, splitBy){
-  var split;
-  var stringToSplitBy;
-
-  stringToSplitBy = [];
-  stringToSplitBy.length = 1;
-  stringToSplitBy[0] = splitBy;
-
-  split = strSplitByString(toSplit, stringToSplitBy);
-
-  delete(stringToSplitBy);
-
-  return split;
-}
-function strIndexOfCharacter(string, character, indexReference){
-  var i;
-  var found;
-
-  found = false;
-  for(i = 0; i < string.length &&  !found ; i = i + 1){
-    if(string[i] == character){
-      found = true;
-      indexReference.numberValue = i;
-    }
-  }
-
-  return found;
-}
-function strSubstringEqualsWithCheck(string, from, substring, equalsReference){
-  var success;
-
-  if(from < string.length){
-    success = true;
-    equalsReference.booleanValue = strSubstringEquals(string, from, substring);
-  }else{
-    success = false;
-  }
-
-  return success;
-}
-function strSubstringEquals(string, from, substring){
-  var i;
-  var equal;
-
-  equal = true;
-  for(i = 0; i < substring.length && equal; i = i + 1){
-    if(string[from + i] != substring[i]){
-      equal = false;
-    }
-  }
-
-  return equal;
-}
-function strIndexOfString(string, substring, indexReference){
-  var i;
-  var found;
-
-  found = false;
-  for(i = 0; i < string.length - substring.length + 1 &&  !found ; i = i + 1){
-    if(strSubstringEquals(string, i, substring)){
-      found = true;
-      indexReference.numberValue = i;
-    }
-  }
-
-  return found;
-}
-function strContainsCharacter(string, character){
-  var i;
-  var found;
-
-  found = false;
-  for(i = 0; i < string.length &&  !found ; i = i + 1){
-    if(string[i] == character){
-      found = true;
-    }
-  }
-
-  return found;
-}
-function strContainsString(string, substring){
-  return strIndexOfString(string, substring, {});
-}
-function strToUpperCase(string){
-  var i;
-
-  for(i = 0; i < string.length; i = i + 1){
-    string[i] = charToUpperCase(string[i]);
-  }
-}
-function strToLowerCase(string){
-  var i;
-
-  for(i = 0; i < string.length; i = i + 1){
-    string[i] = charToLowerCase(string[i]);
-  }
-}
-function strEqualsIgnoreCase(a, b){
-  var equal;
-  var i;
-
-  if(a.length == b.length){
-    equal = true;
-    for(i = 0; i < a.length && equal; i = i + 1){
-      if(charToLowerCase(a[i]) != charToLowerCase(b[i])){
-        equal = false;
-      }
-    }
-  }else{
-    equal = false;
-  }
-
-  return equal;
-}
-function strReplaceString(string, toReplace, replaceWith){
-  var result;
-  var i;
-  var equalsReference;
-  var success;
-
-  equalsReference = {};
-  result = [];
-  result.length = 0;
-
-  for(i = 0; i < string.length; ){
-    success = strSubstringEqualsWithCheck(string, i, toReplace, equalsReference);
-    if(success){
-      success = equalsReference.booleanValue;
-    }
-
-    if(success && toReplace.length > 0){
-      result = strConcatenateString(result, replaceWith);
-      i = i + toReplace.length;
-    }else{
-      result = strConcatenateCharacter(result, string[i]);
-      i = i + 1;
-    }
-  }
-
-  return result;
-}
-function strReplaceCharacter(string, toReplace, replaceWith){
-  var result;
-  var i;
+  lengthx = lengthx + (strings.length - 1)*separator.length;
 
   result = [];
-  result.length = 0;
+  result.length = lengthx;
 
-  for(i = 0; i < string.length; i = i + 1){
-    if(string[i] == toReplace){
-      result = strConcatenateCharacter(result, replaceWith);
-    }else{
-      result = strConcatenateCharacter(result, string[i]);
+  for(i = 0; i < strings.length; i = i + 1){
+    string = strings[i].string;
+    WriteStringToStingStream(result, index, string);
+    if(i + 1 < strings.length){
+      WriteStringToStingStream(result, index, separator);
     }
   }
+
+  delete(index);
 
   return result;
 }
-function strTrim(string){
-  var result;
-  var i, lastWhitespaceLocationStart, lastWhitespaceLocationEnd;
-  var firstNonWhitespaceFound;
+function JoinStrings(strings){
+  var result, string;
+  var lengthx, i;
+  var index;
 
-  /* Find whitepaces at the start. */
-  lastWhitespaceLocationStart =  -1;
-  firstNonWhitespaceFound = false;
-  for(i = 0; i < string.length &&  !firstNonWhitespaceFound ; i = i + 1){
-    if(charIsWhiteSpace(string[i])){
-      lastWhitespaceLocationStart = i;
-    }else{
-      firstNonWhitespaceFound = true;
-    }
+  index = CreateNumberReference(0);
+
+  lengthx = 0;
+  for(i = 0; i < strings.length; i = i + 1){
+    lengthx = lengthx + strings[i].string.length;
   }
 
-  /* Find whitepaces at the end. */
-  lastWhitespaceLocationEnd = string.length;
-  firstNonWhitespaceFound = false;
-  for(i = string.length - 1; i >= 0 &&  !firstNonWhitespaceFound ; i = i - 1){
-    if(charIsWhiteSpace(string[i])){
-      lastWhitespaceLocationEnd = i;
-    }else{
-      firstNonWhitespaceFound = true;
-    }
+  result = [];
+  result.length = lengthx;
+
+  for(i = 0; i < strings.length; i = i + 1){
+    string = strings[i].string;
+    WriteStringToStingStream(result, index, string);
   }
 
-  if(lastWhitespaceLocationStart < lastWhitespaceLocationEnd){
-    result = strSubstring(string, lastWhitespaceLocationStart + 1, lastWhitespaceLocationEnd);
-  }else{
-    result = [];
-    result.length = 0;
-  }
+  delete(index);
 
   return result;
-}
-function strStartsWith(string, start){
-  var startsWithString;
-
-  startsWithString = false;
-  if(string.length >= start.length){
-    startsWithString = strSubstringEquals(string, 0, start);
-  }
-
-  return startsWithString;
-}
-function strEndsWith(string, end){
-  var endsWithString;
-
-  endsWithString = false;
-  if(string.length >= end.length){
-    endsWithString = strSubstringEquals(string, string.length - end.length, end);
-  }
-
-  return endsWithString;
-}
-function strSplitByString(toSplit, splitBy){
-  var split;
-  var next;
-  var i;
-  var c;
-  var n;
-
-  split = [];
-  split.length = 0;
-
-  next = [];
-  next.length = 0;
-  for(i = 0; i < toSplit.length; ){
-    c = toSplit[i];
-
-    if(strSubstringEquals(toSplit, i, splitBy)){
-      if(split.length != 0 || i != 0){
-        n = {};
-        n.string = next;
-        split = lAddString(split, n);
-        next = [];
-        next.length = 0;
-        i = i + splitBy.length;
-      }
-    }else{
-      next = strAppendCharacter(next, c);
-      i = i + 1;
-    }
-  }
-
-  if(next.length > 0){
-    n = {};
-    n.string = next;
-    split = lAddString(split, n);
-  }
-
-  return split;
-}
-function strStringIsBefore(a, b){
-  var before, equal, done;
-  var i;
-
-  before = false;
-  equal = true;
-  done = false;
-
-  if(a.length == 0 && b.length > 0){
-    before = true;
-  }else{
-    for(i = 0; i < a.length && i < b.length &&  !done ; i = i + 1){
-      if(a[i] != b[i]){
-        equal = false;
-      }
-      if(charCharacterIsBefore(a[i], b[i])){
-        before = true;
-      }
-      if(charCharacterIsBefore(b[i], a[i])){
-        done = true;
-      }
-    }
-
-    if(equal){
-      if(a.length < b.length){
-        before = true;
-      }
-    }
-  }
-
-  return before;
 }
 function StringToNumberArray(string){
   var i;
@@ -4445,7 +4197,14 @@ function nCreateStringScientificNotationDecimalFromNumber(decimal){
     }
 
     if( !done ){
-      for(; decimal >= 10 || decimal < 1; ){
+      exponent = Math.round(Math.log10(decimal));
+      exponent = Math.min(99, exponent);
+      exponent = Math.max( -99, exponent);
+
+      decimal = decimal/Math.pow(10, exponent);
+
+      /* Adjust */
+      for(; (decimal >= 10 || decimal < 1) && Math.abs(exponent) < 99; ){
         decimal = decimal*multiplier;
         exponent = exponent + inc;
       }
@@ -4457,12 +4216,12 @@ function nCreateStringScientificNotationDecimalFromNumber(decimal){
   nCreateStringFromNumberWithCheck(exponent, 10, exponentReference);
 
   if( !isPositive ){
-    result = strAppendString(result, "-".split(''));
+    result = AppendString(result, "-".split(''));
   }
 
-  result = strAppendString(result, mantissaReference.string);
-  result = strAppendString(result, "e".split(''));
-  result = strAppendString(result, exponentReference.string);
+  result = AppendString(result, mantissaReference.string);
+  result = AppendString(result, "e".split(''));
+  result = AppendString(result, exponentReference.string);
 
   return result;
 }
@@ -4486,6 +4245,7 @@ function nCreateStringFromNumberWithCheck(decimal, base, stringReference){
   var characterReference;
   var c;
 
+  string = CreateDynamicArrayCharacters();
   isPositive = true;
 
   if(decimal < 0){
@@ -4494,16 +4254,13 @@ function nCreateStringFromNumberWithCheck(decimal, base, stringReference){
   }
 
   if(decimal == 0){
-    stringReference.string = "0".split('');
+    DynamicArrayAddCharacter(string, '0');
     success = true;
   }else{
     characterReference = {};
 
     if(IsInteger(base)){
       success = true;
-
-      string = [];
-      string.length = 0;
 
       maximumDigits = nGetMaximumDigitsForBase(base);
 
@@ -4514,16 +4271,16 @@ function nCreateStringFromNumberWithCheck(decimal, base, stringReference){
       hasPrintedPoint = false;
 
       if( !isPositive ){
-        string = strAppendCharacter(string, '-');
+        DynamicArrayAddCharacter(string, '-');
       }
 
       /* Print leading zeros. */
       if(digitPosition < 0){
-        string = strAppendCharacter(string, '0');
-        string = strAppendCharacter(string, '.');
+        DynamicArrayAddCharacter(string, '0');
+        DynamicArrayAddCharacter(string, '.');
         hasPrintedPoint = true;
         for(i = 0; i <  -digitPosition - 1; i = i + 1){
-          string = strAppendCharacter(string, '0');
+          DynamicArrayAddCharacter(string, '0');
         }
       }
 
@@ -4537,7 +4294,7 @@ function nCreateStringFromNumberWithCheck(decimal, base, stringReference){
 
         if( !hasPrintedPoint  && digitPosition - i + 1 == 0){
           if(decimal != 0){
-            string = strAppendCharacter(string, '.');
+            DynamicArrayAddCharacter(string, '.');
           }
           hasPrintedPoint = true;
         }
@@ -4547,26 +4304,31 @@ function nCreateStringFromNumberWithCheck(decimal, base, stringReference){
           success = nGetSingleDigitCharacterFromNumberWithCheck(d, base, characterReference);
           if(success){
             c = characterReference.characterValue;
-            string = strAppendCharacter(string, c);
+            DynamicArrayAddCharacter(string, c);
           }
         }
 
         if(success){
           decimal = decimal - d*Math.pow(base, maximumDigits - i - 1);
+          decimal = Math.max(decimal, 0);
+          decimal = Math.round(decimal);
         }
       }
 
       if(success){
         /* Print trailing zeros. */
         for(i = 0; i < digitPosition - maximumDigits + 1; i = i + 1){
-          string = strAppendCharacter(string, '0');
+          DynamicArrayAddCharacter(string, '0');
         }
-
-        stringReference.string = string;
       }
     }else{
       success = false;
     }
+  }
+
+  if(success){
+    stringReference.string = DynamicArrayCharactersToArray(string);
+    FreeDynamicArrayCharacters(string);
   }
 
   /* Done */
@@ -4697,10 +4459,11 @@ function nCreateNumberFromParts(base, numberIsPositive, beforePoint, afterPoint,
   return n;
 }
 function nExtractPartsFromNumberString(n, base, numberIsPositive, beforePoint, afterPoint, exponentIsPositive, exponent, errorMessages){
-  var i;
-  var success;
+  var i, j, count;
+  var success, done, complete;
 
   i = 0;
+  complete = false;
 
   if(i < n.length){
     if(n[i] == '-'){
@@ -4711,128 +4474,52 @@ function nExtractPartsFromNumberString(n, base, numberIsPositive, beforePoint, a
       i = i + 1;
     }
 
-    success = nExtractPartsFromNumberStringFromSign(n, base, i, beforePoint, afterPoint, exponentIsPositive, exponent, errorMessages);
+    success = true;
   }else{
     success = false;
     errorMessages.string = "Number cannot have length zero.".split('');
   }
 
-  return success;
-}
-function nExtractPartsFromNumberStringFromSign(n, base, i, beforePoint, afterPoint, exponentIsPositive, exponent, errorMessages){
-  var success, done;
-  var count, j;
-
-  done = false;
-  count = 0;
-  for(; i + count < n.length &&  !done ; ){
-    if(nCharacterIsNumberCharacterInBase(n[i + count], base)){
-      count = count + 1;
-    }else{
-      done = true;
-    }
-  }
-
-  if(count >= 1){
-    beforePoint.numberArray = [];
-    beforePoint.numberArray.length = count;
-
-    for(j = 0; j < count; j = j + 1){
-      beforePoint.numberArray[j] = nGetNumberFromNumberCharacterForBase(n[i + j], base);
-    }
-
-    i = i + count;
-
-    if(i < n.length){
-      success = nExtractPartsFromNumberStringFromPointOrExponent(n, base, i, afterPoint, exponentIsPositive, exponent, errorMessages);
-    }else{
-      afterPoint.numberArray = [];
-      afterPoint.numberArray.length = 0;
-      exponent.numberArray = [];
-      exponent.numberArray.length = 0;
-      success = true;
-    }
-  }else{
-    success = false;
-    errorMessages.string = "Number must have at least one number after the optional sign.".split('');
-  }
-
-  return success;
-}
-function nExtractPartsFromNumberStringFromPointOrExponent(n, base, i, afterPoint, exponentIsPositive, exponent, errorMessages){
-  var success, done;
-  var count, j;
-
-  if(n[i] == '.'){
-    i = i + 1;
-
-    if(i < n.length){
-      done = false;
-      count = 0;
-      for(; i + count < n.length &&  !done ; ){
-        if(nCharacterIsNumberCharacterInBase(n[i + count], base)){
-          count = count + 1;
-        }else{
-          done = true;
-        }
-      }
-
-      if(count >= 1){
-        afterPoint.numberArray = [];
-        afterPoint.numberArray.length = count;
-
-        for(j = 0; j < count; j = j + 1){
-          afterPoint.numberArray[j] = nGetNumberFromNumberCharacterForBase(n[i + j], base);
-        }
-
-        i = i + count;
-
-        if(i < n.length){
-          success = nExtractPartsFromNumberStringFromExponent(n, base, i, exponentIsPositive, exponent, errorMessages);
-        }else{
-          exponent.numberArray = [];
-          exponent.numberArray.length = 0;
-          success = true;
-        }
+  if(success){
+    done = false;
+    count = 0;
+    for(; i + count < n.length &&  !done ; ){
+      if(nCharacterIsNumberCharacterInBase(n[i + count], base)){
+        count = count + 1;
       }else{
-        success = false;
-        errorMessages.string = "There must be at least one digit after the decimal point.".split('');
+        done = true;
+      }
+    }
+
+    if(count >= 1){
+      beforePoint.numberArray = [];
+      beforePoint.numberArray.length = count;
+
+      for(j = 0; j < count; j = j + 1){
+        beforePoint.numberArray[j] = nGetNumberFromNumberCharacterForBase(n[i + j], base);
+      }
+
+      i = i + count;
+
+      if(i < n.length){
+        success = true;
+      }else{
+        afterPoint.numberArray = [];
+        afterPoint.numberArray.length = 0;
+        exponent.numberArray = [];
+        exponent.numberArray.length = 0;
+        success = true;
+        complete = true;
       }
     }else{
       success = false;
-      errorMessages.string = "There must be at least one digit after the decimal point.".split('');
+      errorMessages.string = "Number must have at least one number after the optional sign.".split('');
     }
-  }else if(base <= 14 && (n[i] == 'e' || n[i] == 'E')){
-    if(i < n.length){
-      success = nExtractPartsFromNumberStringFromExponent(n, base, i, exponentIsPositive, exponent, errorMessages);
-      afterPoint.numberArray = [];
-      afterPoint.numberArray.length = 0;
-    }else{
-      success = false;
-      errorMessages.string = "There must be at least one digit after the exponent.".split('');
-    }
-  }else{
-    success = false;
-    errorMessages.string = "Expected decimal point or exponent symbol.".split('');
   }
 
-  return success;
-}
-function nExtractPartsFromNumberStringFromExponent(n, base, i, exponentIsPositive, exponent, errorMessages){
-  var success, done;
-  var count, j;
-
-  if(base <= 14 && (n[i] == 'e' || n[i] == 'E')){
-    i = i + 1;
-
-    if(i < n.length){
-      if(n[i] == '-'){
-        exponentIsPositive.booleanValue = false;
-        i = i + 1;
-      }else if(n[i] == '+'){
-        exponentIsPositive.booleanValue = true;
-        i = i + 1;
-      }
+  if(success &&  !complete ){
+    if(n[i] == '.'){
+      i = i + 1;
 
       if(i < n.length){
         done = false;
@@ -4846,20 +4533,22 @@ function nExtractPartsFromNumberStringFromExponent(n, base, i, exponentIsPositiv
         }
 
         if(count >= 1){
-          exponent.numberArray = [];
-          exponent.numberArray.length = count;
+          afterPoint.numberArray = [];
+          afterPoint.numberArray.length = count;
 
           for(j = 0; j < count; j = j + 1){
-            exponent.numberArray[j] = nGetNumberFromNumberCharacterForBase(n[i + j], base);
+            afterPoint.numberArray[j] = nGetNumberFromNumberCharacterForBase(n[i + j], base);
           }
 
           i = i + count;
 
-          if(i == n.length){
+          if(i < n.length){
             success = true;
           }else{
-            success = false;
-            errorMessages.string = "There cannot be any characters past the exponent of the number.".split('');
+            exponent.numberArray = [];
+            exponent.numberArray.length = 0;
+            success = true;
+            complete = true;
           }
         }else{
           success = false;
@@ -4867,15 +4556,79 @@ function nExtractPartsFromNumberStringFromExponent(n, base, i, exponentIsPositiv
         }
       }else{
         success = false;
+        errorMessages.string = "There must be at least one digit after the decimal point.".split('');
+      }
+    }else if(base <= 14 && (n[i] == 'e' || n[i] == 'E')){
+      if(i < n.length){
+        success = true;
+        afterPoint.numberArray = [];
+        afterPoint.numberArray.length = 0;
+      }else{
+        success = false;
+        errorMessages.string = "There must be at least one digit after the exponent.".split('');
+      }
+    }else{
+      success = false;
+      errorMessages.string = "Expected decimal point or exponent symbol.".split('');
+    }
+  }
+
+  if(success &&  !complete ){
+    if(base <= 14 && (n[i] == 'e' || n[i] == 'E')){
+      i = i + 1;
+
+      if(i < n.length){
+        if(n[i] == '-'){
+          exponentIsPositive.booleanValue = false;
+          i = i + 1;
+        }else if(n[i] == '+'){
+          exponentIsPositive.booleanValue = true;
+          i = i + 1;
+        }
+
+        if(i < n.length){
+          done = false;
+          count = 0;
+          for(; i + count < n.length &&  !done ; ){
+            if(nCharacterIsNumberCharacterInBase(n[i + count], base)){
+              count = count + 1;
+            }else{
+              done = true;
+            }
+          }
+
+          if(count >= 1){
+            exponent.numberArray = [];
+            exponent.numberArray.length = count;
+
+            for(j = 0; j < count; j = j + 1){
+              exponent.numberArray[j] = nGetNumberFromNumberCharacterForBase(n[i + j], base);
+            }
+
+            i = i + count;
+
+            if(i == n.length){
+              success = true;
+            }else{
+              success = false;
+              errorMessages.string = "There cannot be any characters past the exponent of the number.".split('');
+            }
+          }else{
+            success = false;
+            errorMessages.string = "There must be at least one digit after the decimal point.".split('');
+          }
+        }else{
+          success = false;
+          errorMessages.string = "There must be at least one digit after the exponent symbol.".split('');
+        }
+      }else{
+        success = false;
         errorMessages.string = "There must be at least one digit after the exponent symbol.".split('');
       }
     }else{
       success = false;
-      errorMessages.string = "There must be at least one digit after the exponent symbol.".split('');
+      errorMessages.string = "Expected exponent symbol.".split('');
     }
-  }else{
-    success = false;
-    errorMessages.string = "Expected exponent symbol.".split('');
   }
 
   return success;
@@ -4937,7 +4690,7 @@ function nStringToNumberArrayWithCheck(str, numberArrayReference, errorMessage){
   var success;
   var numberReference;
 
-  numberStrings = strSplitByString(str, ",".split(''));
+  numberStrings = SplitByString(str, ",".split(''));
 
   numbers = [];
   numbers.length = numberStrings.length;
@@ -4946,7 +4699,7 @@ function nStringToNumberArrayWithCheck(str, numberArrayReference, errorMessage){
 
   for(i = 0; i < numberStrings.length; i = i + 1){
     numberString = numberStrings[i].string;
-    trimmedNumberString = strTrim(numberString);
+    trimmedNumberString = Trim(numberString);
     success = nCreateNumberFromDecimalStringWithCheck(trimmedNumberString, numberReference, errorMessage);
     numbers[i] = numberReference.numberValue;
 
@@ -4960,717 +4713,6 @@ function nStringToNumberArrayWithCheck(str, numberArrayReference, errorMessage){
   numberArrayReference.numberArray = numbers;
 
   return success;
-}
-function lAddNumber(list, a){
-  var newlist;
-  var i;
-
-  newlist = [];
-  newlist.length = list.length + 1;
-  for(i = 0; i < list.length; i = i + 1){
-    newlist[i] = list[i];
-  }
-  newlist[list.length] = a;
-		
-  delete(list);
-		
-  return newlist;
-}
-function lAddNumberRef(list, i){
-  list.numberArray = lAddNumber(list.numberArray, i);
-}
-function lRemoveNumber(list, n){
-  var newlist;
-  var i;
-
-  newlist = [];
-  newlist.length = list.length - 1;
-
-  if(n >= 0 && n < list.length){
-    for(i = 0; i < list.length; i = i + 1){
-      if(i < n){
-        newlist[i] = list[i];
-      }
-      if(i > n){
-        newlist[i - 1] = list[i];
-      }
-    }
-
-    delete(list);
-  }else{
-    delete(newlist);
-  }
-		
-  return newlist;
-}
-function lGetNumberRef(list, i){
-  return list.numberArray[i];
-}
-function lRemoveNumberRef(list, i){
-  list.numberArray = lRemoveNumber(list.numberArray, i);
-}
-function lAddString(list, a){
-  var newlist;
-  var i;
-
-  newlist = [];
-  newlist.length = list.length + 1;
-
-  for(i = 0; i < list.length; i = i + 1){
-    newlist[i] = list[i];
-  }
-  newlist[list.length] = a;
-		
-  delete(list);
-		
-  return newlist;
-}
-function lAddStringRef(list, i){
-  list.stringArray = lAddString(list.stringArray, i);
-}
-function lRemoveString(list, n){
-  var newlist;
-  var i;
-
-  newlist = [];
-  newlist.length = list.length - 1;
-
-  if(n >= 0 && n < list.length){
-    for(i = 0; i < list.length; i = i + 1){
-      if(i < n){
-        newlist[i] = list[i];
-      }
-      if(i > n){
-        newlist[i - 1] = list[i];
-      }
-    }
-
-    delete(list);
-  }else{
-    delete(newlist);
-  }
-		
-  return newlist;
-}
-function lGetStringRef(list, i){
-  return list.stringArray[i];
-}
-function lRemoveStringRef(list, i){
-  list.stringArray = lRemoveString(list.stringArray, i);
-}
-function lAddBoolean(list, a){
-  var newlist;
-  var i;
-
-  newlist = [];
-  newlist.length = list.length + 1;
-  for(i = 0; i < list.length; i = i + 1){
-    newlist[i] = list[i];
-  }
-  newlist[list.length] = a;
-		
-  delete(list);
-		
-  return newlist;
-}
-function lAddBooleanRef(list, i){
-  list.booleanArray = lAddBoolean(list.booleanArray, i);
-}
-function lRemoveBoolean(list, n){
-  var newlist;
-  var i;
-
-  newlist = [];
-  newlist.length = list.length - 1;
-
-  if(n >= 0 && n < list.length){
-    for(i = 0; i < list.length; i = i + 1){
-      if(i < n){
-        newlist[i] = list[i];
-      }
-      if(i > n){
-        newlist[i - 1] = list[i];
-      }
-    }
-
-    delete(list);
-  }else{
-    delete(newlist);
-  }
-		
-  return newlist;
-}
-function lGetBooleanRef(list, i){
-  return list.booleanArray[i];
-}
-function lRemoveDecimalRef(list, i){
-  list.booleanArray = lRemoveBoolean(list.booleanArray, i);
-}
-function lCreateLinkedListString(){
-  var ll;
-
-  ll = {};
-  ll.first = {};
-  ll.last = ll.first;
-  ll.last.end = true;
-
-  return ll;
-}
-function lLinkedListAddString(ll, value){
-  ll.last.end = false;
-  ll.last.value = value;
-  ll.last.next = {};
-  ll.last.next.end = true;
-  ll.last = ll.last.next;
-}
-function lLinkedListStringsToArray(ll){
-  var array;
-  var lengthx, i;
-  var node;
-
-  node = ll.first;
-
-  lengthx = lLinkedListStringsLength(ll);
-
-  array = [];
-  array.length = lengthx;
-
-  for(i = 0; i < lengthx; i = i + 1){
-    array[i] = {};
-    array[i].string = node.value;
-    node = node.next;
-  }
-
-  return array;
-}
-function lLinkedListStringsLength(ll){
-  var l;
-  var node;
-
-  l = 0;
-  node = ll.first;
-  for(;  !node.end ; ){
-    node = node.next;
-    l = l + 1;
-  }
-
-  return l;
-}
-function lFreeLinkedListString(ll){
-  var node, prev;
-
-  node = ll.first;
-
-  for(;  !node.end ; ){
-    prev = node;
-    node = node.next;
-    delete(prev);
-  }
-
-  delete(node);
-}
-function lCreateLinkedListNumbers(){
-  var ll;
-
-  ll = {};
-  ll.first = {};
-  ll.last = ll.first;
-  ll.last.end = true;
-
-  return ll;
-}
-function lCreateLinkedListNumbersArray(lengthx){
-  var lls;
-  var i;
-
-  lls = [];
-  lls.length = lengthx;
-  for(i = 0; i < lls.length; i = i + 1){
-    lls[i] = lCreateLinkedListNumbers();
-  }
-
-  return lls;
-}
-function lLinkedListAddNumber(ll, value){
-  ll.last.end = false;
-  ll.last.value = value;
-  ll.last.next = {};
-  ll.last.next.end = true;
-  ll.last = ll.last.next;
-}
-function lLinkedListNumbersLength(ll){
-  var l;
-  var node;
-
-  l = 0;
-  node = ll.first;
-  for(;  !node.end ; ){
-    node = node.next;
-    l = l + 1;
-  }
-
-  return l;
-}
-function lLinkedListNumbersIndex(ll, index){
-  var i;
-  var node;
-
-  node = ll.first;
-  for(i = 0; i < index; i = i + 1){
-    node = node.next;
-  }
-
-  return node.value;
-}
-function lLinkedListInsertNumber(ll, index, value){
-  var i;
-  var node, tmp;
-
-  if(index == 0){
-    tmp = ll.first;
-    ll.first = {};
-    ll.first.next = tmp;
-    ll.first.value = value;
-    ll.first.end = false;
-  }else{
-    node = ll.first;
-    for(i = 0; i < index - 1; i = i + 1){
-      node = node.next;
-    }
-
-    tmp = node.next;
-    node.next = {};
-    node.next.next = tmp;
-    node.next.value = value;
-    node.next.end = false;
-  }
-}
-function lLinkedListSet(ll, index, value){
-  var i;
-  var node;
-
-  node = ll.first;
-  for(i = 0; i < index; i = i + 1){
-    node = node.next;
-  }
-
-  node.next.value = value;
-}
-function lLinkedListRemoveNumber(ll, index){
-  var i;
-  var node, prev;
-
-  node = ll.first;
-  prev = ll.first;
-
-  for(i = 0; i < index; i = i + 1){
-    prev = node;
-    node = node.next;
-  }
-
-  if(index == 0){
-    ll.first = prev.next;
-  }
-  if( !prev.next.end ){
-    prev.next = prev.next.next;
-  }
-}
-function lFreeLinkedListNumbers(ll){
-  var node, prev;
-
-  node = ll.first;
-
-  for(;  !node.end ; ){
-    prev = node;
-    node = node.next;
-    delete(prev);
-  }
-
-  delete(node);
-}
-function lFreeLinkedListNumbersArray(lls){
-  var i;
-
-  for(i = 0; i < lls.length; i = i + 1){
-    lFreeLinkedListNumbers(lls[i]);
-  }
-  delete(lls);
-}
-function lLinkedListNumbersToArray(ll){
-  var array;
-  var lengthx, i;
-  var node;
-
-  node = ll.first;
-
-  lengthx = lLinkedListNumbersLength(ll);
-
-  array = [];
-  array.length = lengthx;
-
-  for(i = 0; i < lengthx; i = i + 1){
-    array[i] = node.value;
-    node = node.next;
-  }
-
-  return array;
-}
-function lArrayToLinkedListNumbers(array){
-  var ll;
-  var i;
-
-  ll = lCreateLinkedListNumbers();
-
-  for(i = 0; i < array.length; i = i + 1){
-    lLinkedListAddNumber(ll, array[i]);
-  }
-
-  return ll;
-}
-function lLinkedListNumbersEqual(a, b){
-  var equal, done;
-  var an, bn;
-
-  an = a.first;
-  bn = b.first;
-
-  equal = true;
-  done = false;
-  for(; equal &&  !done ; ){
-    if(an.end == bn.end){
-      if(an.end){
-        done = true;
-      }else if(an.value == bn.value){
-        an = an.next;
-        bn = bn.next;
-      }else{
-        equal = false;
-      }
-    }else{
-      equal = false;
-    }
-  }
-
-  return equal;
-}
-function lCreateLinkedListCharacter(){
-  var ll;
-
-  ll = {};
-  ll.first = {};
-  ll.last = ll.first;
-  ll.last.end = true;
-
-  return ll;
-}
-function lLinkedListAddCharacter(ll, value){
-  ll.last.end = false;
-  ll.last.value = value;
-  ll.last.next = {};
-  ll.last.next.end = true;
-  ll.last = ll.last.next;
-}
-function lLinkedListCharactersToArray(ll){
-  var array;
-  var lengthx, i;
-  var node;
-
-  node = ll.first;
-
-  lengthx = lLinkedListCharactersLength(ll);
-
-  array = [];
-  array.length = lengthx;
-
-  for(i = 0; i < lengthx; i = i + 1){
-    array[i] = node.value;
-    node = node.next;
-  }
-
-  return array;
-}
-function lLinkedListCharactersLength(ll){
-  var l;
-  var node;
-
-  l = 0;
-  node = ll.first;
-  for(;  !node.end ; ){
-    node = node.next;
-    l = l + 1;
-  }
-
-  return l;
-}
-function lFreeLinkedListCharacter(ll){
-  var node, prev;
-
-  node = ll.first;
-
-  for(;  !node.end ; ){
-    prev = node;
-    node = node.next;
-    delete(prev);
-  }
-
-  delete(node);
-}
-function lCreateDynamicArrayNumbers(){
-  var da;
-
-  da = {};
-  da.array = [];
-  da.array.length = 10;
-  da.lengthx = 0;
-
-  return da;
-}
-function lCreateDynamicArrayNumbersWithInitialCapacity(capacity){
-  var da;
-
-  da = {};
-  da.array = [];
-  da.array.length = capacity;
-  da.lengthx = 0;
-
-  return da;
-}
-function lDynamicArrayAddNumber(da, value){
-  if(da.lengthx == da.array.length){
-    lDynamicArrayNumbersIncreaseSize(da);
-  }
-
-  da.array[da.lengthx] = value;
-  da.lengthx = da.lengthx + 1;
-}
-function lDynamicArrayNumbersIncreaseSize(da){
-  var newLength, i;
-  var newArray;
-
-  newLength = Math.round(da.array.length*3/2);
-  newArray = [];
-  newArray.length = newLength;
-
-  for(i = 0; i < da.array.length; i = i + 1){
-    newArray[i] = da.array[i];
-  }
-
-  delete(da.array);
-
-  da.array = newArray;
-}
-function lDynamicArrayNumbersDecreaseSizeNecessary(da){
-  var needsDecrease;
-
-  needsDecrease = false;
-
-  if(da.lengthx > 10){
-    needsDecrease = da.lengthx <= Math.round(da.array.length*2/3);
-  }
-
-  return needsDecrease;
-}
-function lDynamicArrayNumbersDecreaseSize(da){
-  var newLength, i;
-  var newArray;
-
-  newLength = Math.round(da.array.length*2/3);
-  newArray = [];
-  newArray.length = newLength;
-
-  for(i = 0; i < da.array.length; i = i + 1){
-    newArray[i] = da.array[i];
-  }
-
-  delete(da.array);
-
-  da.array = newArray;
-}
-function lDynamicArrayNumbersIndex(da, index){
-  return da.array[index];
-}
-function lDynamicArrayNumbersLength(da){
-  return da.lengthx;
-}
-function lDynamicArrayInsertNumber(da, index, value){
-  var i;
-
-  if(da.lengthx == da.array.length){
-    lDynamicArrayNumbersIncreaseSize(da);
-  }
-
-  for(i = da.lengthx; i > index; i = i - 1){
-    da.array[i] = da.array[i - 1];
-  }
-
-  da.array[index] = value;
-
-  da.lengthx = da.lengthx + 1;
-}
-function lDynamicArraySet(da, index, value){
-  da.array[index] = value;
-}
-function lDynamicArrayRemoveNumber(da, index){
-  var i;
-
-  for(i = index; i < da.lengthx - 1; i = i + 1){
-    da.array[i] = da.array[i + 1];
-  }
-
-  da.lengthx = da.lengthx - 1;
-
-  if(lDynamicArrayNumbersDecreaseSizeNecessary(da)){
-    lDynamicArrayNumbersDecreaseSize(da);
-  }
-}
-function lFreeDynamicArrayNumbers(da){
-  delete(da.array);
-  delete(da);
-}
-function lDynamicArrayNumbersToArray(da){
-  var array;
-  var i;
-
-  array = [];
-  array.length = da.lengthx;
-
-  for(i = 0; i < da.lengthx; i = i + 1){
-    array[i] = da.array[i];
-  }
-
-  return array;
-}
-function lArrayToDynamicArrayNumbersWithOptimalSize(array){
-  var da;
-  var i;
-  var c, n, newCapacity;
-
-  /*
-         c = 10*(3/2)^n
-         log(c) = log(10*(3/2)^n)
-         log(c) = log(10) + log((3/2)^n)
-         log(c) = 1 + log((3/2)^n)
-         log(c) - 1 = log((3/2)^n)
-         log(c) - 1 = n*log(3/2)
-         n = (log(c) - 1)/log(3/2)
-         */
-  c = array.length;
-  n = (Math.log(c) - 1)/Math.log(3/2);
-  newCapacity = Math.floor(n) + 1;
-
-  da = lCreateDynamicArrayNumbersWithInitialCapacity(newCapacity);
-
-  for(i = 0; i < array.length; i = i + 1){
-    da.array[i] = array[i];
-  }
-
-  return da;
-}
-function lArrayToDynamicArrayNumbers(array){
-  var da;
-
-  da = {};
-  da.array = CopyNumberArray(array);
-  da.lengthx = array.length;
-
-  return da;
-}
-function lDynamicArrayNumbersEqual(a, b){
-  var equal;
-  var i;
-
-  equal = true;
-  if(a.lengthx == b.lengthx){
-    for(i = 0; i < a.lengthx && equal; i = i + 1){
-      if(a.array[i] != b.array[i]){
-        equal = false;
-      }
-    }
-  }else{
-    equal = false;
-  }
-
-  return equal;
-}
-function lDynamicArrayNumbersToLinkedList(da){
-  var ll;
-  var i;
-
-  ll = lCreateLinkedListNumbers();
-
-  for(i = 0; i < da.lengthx; i = i + 1){
-    lLinkedListAddNumber(ll, da.array[i]);
-  }
-
-  return ll;
-}
-function lLinkedListToDynamicArrayNumbers(ll){
-  var da;
-  var i;
-  var node;
-
-  node = ll.first;
-
-  da = {};
-  da.lengthx = lLinkedListNumbersLength(ll);
-
-  da.array = [];
-  da.array.length = da.lengthx;
-
-  for(i = 0; i < da.lengthx; i = i + 1){
-    da.array[i] = node.value;
-    node = node.next;
-  }
-
-  return da;
-}
-function lAddCharacter(list, a){
-  var newlist;
-  var i;
-
-  newlist = [];
-  newlist.length = list.length + 1;
-  for(i = 0; i < list.length; i = i + 1){
-    newlist[i] = list[i];
-  }
-  newlist[list.length] = a;
-		
-  delete(list);
-		
-  return newlist;
-}
-function lAddCharacterRef(list, i){
-  list.string = lAddCharacter(list.string, i);
-}
-function lRemoveCharacter(list, n){
-  var newlist;
-  var i;
-
-  newlist = [];
-  newlist.length = list.length - 1;
-
-  if(n >= 0 && n < list.length){
-    for(i = 0; i < list.length; i = i + 1){
-      if(i < n){
-        newlist[i] = list[i];
-      }
-      if(i > n){
-        newlist[i - 1] = list[i];
-      }
-    }
-
-    delete(list);
-  }else{
-    delete(newlist);
-  }
-
-  return newlist;
-}
-function lGetCharacterRef(list, i){
-  return list.string[i];
-}
-function lRemoveCharacterRef(list, i){
-  list.string = lRemoveCharacter(list.string, i);
 }
 function Negate(x){
   return  -x;
@@ -6190,59 +5232,35 @@ function charToUpperCase(character){
 function charIsUpperCase(character){
   var isUpper;
 
-  isUpper = false;
+  isUpper = true;
   if(character == 'A'){
-    isUpper = true;
   }else if(character == 'B'){
-    isUpper = true;
   }else if(character == 'C'){
-    isUpper = true;
   }else if(character == 'D'){
-    isUpper = true;
   }else if(character == 'E'){
-    isUpper = true;
   }else if(character == 'F'){
-    isUpper = true;
   }else if(character == 'G'){
-    isUpper = true;
   }else if(character == 'H'){
-    isUpper = true;
   }else if(character == 'I'){
-    isUpper = true;
   }else if(character == 'J'){
-    isUpper = true;
   }else if(character == 'K'){
-    isUpper = true;
   }else if(character == 'L'){
-    isUpper = true;
   }else if(character == 'M'){
-    isUpper = true;
   }else if(character == 'N'){
-    isUpper = true;
   }else if(character == 'O'){
-    isUpper = true;
   }else if(character == 'P'){
-    isUpper = true;
   }else if(character == 'Q'){
-    isUpper = true;
   }else if(character == 'R'){
-    isUpper = true;
   }else if(character == 'S'){
-    isUpper = true;
   }else if(character == 'T'){
-    isUpper = true;
   }else if(character == 'U'){
-    isUpper = true;
   }else if(character == 'V'){
-    isUpper = true;
   }else if(character == 'W'){
-    isUpper = true;
   }else if(character == 'X'){
-    isUpper = true;
   }else if(character == 'Y'){
-    isUpper = true;
   }else if(character == 'Z'){
-    isUpper = true;
+  }else{
+    isUpper = false;
   }
 
   return isUpper;
@@ -6250,59 +5268,35 @@ function charIsUpperCase(character){
 function charIsLowerCase(character){
   var isLower;
 
-  isLower = false;
+  isLower = true;
   if(character == 'a'){
-    isLower = true;
   }else if(character == 'b'){
-    isLower = true;
   }else if(character == 'c'){
-    isLower = true;
   }else if(character == 'd'){
-    isLower = true;
   }else if(character == 'e'){
-    isLower = true;
   }else if(character == 'f'){
-    isLower = true;
   }else if(character == 'g'){
-    isLower = true;
   }else if(character == 'h'){
-    isLower = true;
   }else if(character == 'i'){
-    isLower = true;
   }else if(character == 'j'){
-    isLower = true;
   }else if(character == 'k'){
-    isLower = true;
   }else if(character == 'l'){
-    isLower = true;
   }else if(character == 'm'){
-    isLower = true;
   }else if(character == 'n'){
-    isLower = true;
   }else if(character == 'o'){
-    isLower = true;
   }else if(character == 'p'){
-    isLower = true;
   }else if(character == 'q'){
-    isLower = true;
   }else if(character == 'r'){
-    isLower = true;
   }else if(character == 's'){
-    isLower = true;
   }else if(character == 't'){
-    isLower = true;
   }else if(character == 'u'){
-    isLower = true;
   }else if(character == 'v'){
-    isLower = true;
   }else if(character == 'w'){
-    isLower = true;
   }else if(character == 'x'){
-    isLower = true;
   }else if(character == 'y'){
-    isLower = true;
   }else if(character == 'z'){
-    isLower = true;
+  }else{
+    isLower = false;
   }
 
   return isLower;
@@ -6313,27 +5307,19 @@ function charIsLetter(character){
 function charIsNumber(character){
   var isNumberx;
 
-  isNumberx = false;
+  isNumberx = true;
   if(character == '0'){
-    isNumberx = true;
   }else if(character == '1'){
-    isNumberx = true;
   }else if(character == '2'){
-    isNumberx = true;
   }else if(character == '3'){
-    isNumberx = true;
   }else if(character == '4'){
-    isNumberx = true;
   }else if(character == '5'){
-    isNumberx = true;
   }else if(character == '6'){
-    isNumberx = true;
   }else if(character == '7'){
-    isNumberx = true;
   }else if(character == '8'){
-    isNumberx = true;
   }else if(character == '9'){
-    isNumberx = true;
+  }else{
+    isNumberx = false;
   }
 
   return isNumberx;
@@ -6341,15 +5327,13 @@ function charIsNumber(character){
 function charIsWhiteSpace(character){
   var isWhiteSpacex;
 
-  isWhiteSpacex = false;
+  isWhiteSpacex = true;
   if(character == ' '){
-    isWhiteSpacex = true;
   }else if(character == '\t'){
-    isWhiteSpacex = true;
   }else if(character == '\n'){
-    isWhiteSpacex = true;
   }else if(character == '\r'){
-    isWhiteSpacex = true;
+  }else{
+    isWhiteSpacex = false;
   }
 
   return isWhiteSpacex;
@@ -6357,71 +5341,41 @@ function charIsWhiteSpace(character){
 function charIsSymbol(character){
   var isSymbolx;
 
-  isSymbolx = false;
+  isSymbolx = true;
   if(character == '!'){
-    isSymbolx = true;
   }else if(character == '\"'){
-    isSymbolx = true;
   }else if(character == '#'){
-    isSymbolx = true;
   }else if(character == '$'){
-    isSymbolx = true;
   }else if(character == '%'){
-    isSymbolx = true;
   }else if(character == '&'){
-    isSymbolx = true;
   }else if(character == '\''){
-    isSymbolx = true;
   }else if(character == '('){
-    isSymbolx = true;
   }else if(character == ')'){
-    isSymbolx = true;
   }else if(character == '*'){
-    isSymbolx = true;
   }else if(character == '+'){
-    isSymbolx = true;
   }else if(character == ','){
-    isSymbolx = true;
   }else if(character == '-'){
-    isSymbolx = true;
   }else if(character == '.'){
-    isSymbolx = true;
   }else if(character == '/'){
-    isSymbolx = true;
   }else if(character == ':'){
-    isSymbolx = true;
   }else if(character == ';'){
-    isSymbolx = true;
   }else if(character == '<'){
-    isSymbolx = true;
   }else if(character == '='){
-    isSymbolx = true;
   }else if(character == '>'){
-    isSymbolx = true;
   }else if(character == '?'){
-    isSymbolx = true;
   }else if(character == '@'){
-    isSymbolx = true;
   }else if(character == '['){
-    isSymbolx = true;
   }else if(character == '\\'){
-    isSymbolx = true;
   }else if(character == ']'){
-    isSymbolx = true;
   }else if(character == '^'){
-    isSymbolx = true;
   }else if(character == '_'){
-    isSymbolx = true;
   }else if(character == '`'){
-    isSymbolx = true;
   }else if(character == '{'){
-    isSymbolx = true;
   }else if(character == '|'){
-    isSymbolx = true;
   }else if(character == '}'){
-    isSymbolx = true;
   }else if(character == '~'){
-    isSymbolx = true;
+  }else{
+    isSymbolx = false;
   }
 
   return isSymbolx;
@@ -6433,5 +5387,57 @@ function charCharacterIsBefore(a, b){
   bd = b.charCodeAt(0);
 
   return ad < bd;
+}
+function charDecimalDigitToCharacter(digit){
+  var c;
+  if(digit == 1){
+    c = '1';
+  }else if(digit == 2){
+    c = '2';
+  }else if(digit == 3){
+    c = '3';
+  }else if(digit == 4){
+    c = '4';
+  }else if(digit == 5){
+    c = '5';
+  }else if(digit == 6){
+    c = '6';
+  }else if(digit == 7){
+    c = '7';
+  }else if(digit == 8){
+    c = '8';
+  }else if(digit == 9){
+    c = '9';
+  }else{
+    c = '0';
+  }
+  return c;
+}
+function charCharacterToDecimalDigit(c){
+  var digit;
+
+  if(c == '1'){
+    digit = 1;
+  }else if(c == '2'){
+    digit = 2;
+  }else if(c == '3'){
+    digit = 3;
+  }else if(c == '4'){
+    digit = 4;
+  }else if(c == '5'){
+    digit = 5;
+  }else if(c == '6'){
+    digit = 6;
+  }else if(c == '7'){
+    digit = 7;
+  }else if(c == '8'){
+    digit = 8;
+  }else if(c == '9'){
+    digit = 9;
+  }else{
+    digit = 0;
+  }
+
+  return digit;
 }
 

@@ -158,7 +158,23 @@ function GenerateTokensFromTemplate(&$template, $tokens, $errorMessage){
 
   return $success;
 }
-function GenerateDocument(&$template, $data, $document, $errorMessage){
+function GenerateDocument(&$template, &$json, $document, $errorMessage){
+
+  $data = new stdClass();
+  $errorMessages = new stdClass();
+
+  $success = ReadJSON($json, $data, $errorMessages);
+
+  if($success){
+    $success = GenerateDocumentBasedOnElement($template, $data->element, $document, $errorMessage);
+  }else{
+    $errorMessage->string = JoinStringsWithSeparator($errorMessages->stringArray, $literal = str_split(", "));
+    FreeStringArrayReference($errorMessages);
+  }
+
+  return $success;
+}
+function GenerateDocumentBasedOnElement(&$template, $data, $document, $errorMessage){
 
   $tokens = CreateLinkedListString();
 
@@ -228,7 +244,7 @@ function GenerateDocumentFromNode($n, $data, $ll, $errorMessage){
       }else{
         $success = false;
         $errorMessage->string = str_split("Key for printing not found in JSON object: ");
-        $errorMessage->string = sConcatenateString($errorMessage->string, $n->p1);
+        $errorMessage->string = ConcatenateString($errorMessage->string, $n->p1);
       }
     }else{
       $success = false;
@@ -284,7 +300,7 @@ function GenerateDocumentFromIf($n, $data, $ll, $errorMessage){
     }else{
       $success = false;
       $errorMessage->string = str_split("Key for if not found in JSON object: ");
-      $errorMessage->string = sConcatenateString($errorMessage->string, $n->p1);
+      $errorMessage->string = ConcatenateString($errorMessage->string, $n->p1);
     }
   }else{
     $success = false;
@@ -323,7 +339,7 @@ function GenerateDocumentFromForeach($n, $data, $ll, $errorMessage){
     }else{
       $success = false;
       $errorMessage->string = str_split("Key for foreach not found in JSON object: ");
-      $errorMessage->string = sConcatenateString($errorMessage->string, $n->p2);
+      $errorMessage->string = ConcatenateString($errorMessage->string, $n->p2);
     }
   }else{
     $success = false;
@@ -520,8 +536,8 @@ function ParseNodeString(&$token, $node, $errorMessage){
   }else if($token[0.0] != "{"){
     $isText = true;
   }else{
-    $command = strSubstring($token, 1.0, count($token) - 1.0);
-    $parts = sSplitByCharacter($command, " ");
+    $command = Substring($token, 1.0, count($token) - 1.0);
+    $parts = SplitByCharacter($command, " ");
 
     if(count($command) > 0.0){
       if(StringsEqual($parts[0.0]->string, $literal = str_split("use"))){
@@ -586,12 +602,12 @@ function ParseNodeString(&$token, $node, $errorMessage){
 
   if($isText){
     $node->type = str_split("text");
-    $node->p1 = sReplaceString($token, $literal = str_split("\\{print "), $literal = str_split("{print "));
-    $node->p1 = sReplaceString($node->p1, $literal = str_split("\\{use "), $literal = str_split("{use "));
-    $node->p1 = sReplaceString($node->p1, $literal = str_split("\\{if "), $literal = str_split("{if "));
-    $node->p1 = sReplaceString($node->p1, $literal = str_split("\\{end}"), $literal = str_split("{end}"));
-    $node->p1 = sReplaceString($node->p1, $literal = str_split("\\{foreach "), $literal = str_split("{foreach "));
-    $node->p1 = sReplaceString($node->p1, $literal = str_split("\\{else}"), $literal = str_split("{else}"));
+    $node->p1 = ReplaceString($token, $literal = str_split("\\{print "), $literal = str_split("{print "));
+    $node->p1 = ReplaceString($node->p1, $literal = str_split("\\{use "), $literal = str_split("{use "));
+    $node->p1 = ReplaceString($node->p1, $literal = str_split("\\{if "), $literal = str_split("{if "));
+    $node->p1 = ReplaceString($node->p1, $literal = str_split("\\{end}"), $literal = str_split("{end}"));
+    $node->p1 = ReplaceString($node->p1, $literal = str_split("\\{foreach "), $literal = str_split("{foreach "));
+    $node->p1 = ReplaceString($node->p1, $literal = str_split("\\{else}"), $literal = str_split("{else}"));
   }
 
   return $success;
@@ -609,8 +625,24 @@ function test(){
   testGenerateDocument5($failures);
   testGenerateDocument6($failures);
   testGenerateDocument7($failures);
+  testGenerateDocument8($failures);
 
   return $failures->numberValue;
+}
+function testGenerateDocument8($failures){
+
+  $document = new stdClass();
+  $errorMessage = new stdClass();
+
+  $template = str_split("This is a test: {print b} {foreach x in a}{print x}{end}.");
+  $json = str_split("{\"a\": [1, 2, 3], \"b\": 4}");
+  $success = GenerateDocument($template, $json, $document, $errorMessage);
+
+  if($success){
+    AssertStringEquals($literal = str_split("This is a test: 4 123."), $document->string, $failures);
+  }
+
+  AssertTrue($success, $failures);
 }
 function testTokenGeneration($failures){
 
@@ -705,7 +737,7 @@ function AssertTemplateResult(&$template, &$json, &$result, $failures){
   AssertTrue($success, $failures);
 
   if($success){
-    $success = GenerateDocument($template, $data->element, $document, $errorMessage);
+    $success = GenerateDocumentBasedOnElement($template, $data->element, $document, $errorMessage);
 
     AssertTrue($success, $failures);
 
@@ -726,7 +758,7 @@ function AssertTemplateError(&$template, &$json, &$errorMessage, $failures){
   AssertTrue($success, $failures);
 
   if($success){
-    $success = GenerateDocument($template, $data->element, $document, $errorMessageRef);
+    $success = GenerateDocumentBasedOnElement($template, $data->element, $document, $errorMessageRef);
 
     AssertFalse($success, $failures);
 
@@ -862,7 +894,7 @@ function IsValidJSON(&$json, $errorMessage){
 }
 function JSONTokenize(&$json, $tokensReference, $errorMessages){
 
-  $ll = lCreateLinkedListString();
+  $ll = CreateLinkedListString();
   $success = true;
 
   $stringLength = new stdClass();
@@ -872,39 +904,39 @@ function JSONTokenize(&$json, $tokensReference, $errorMessages){
     $c = $json[$i];
 
     if($c == "{"){
-      lLinkedListAddString($ll, $literal = str_split("{"));
+      LinkedListAddString($ll, $literal = str_split("{"));
       $i = $i + 1.0;
     }else if($c == "}"){
-      lLinkedListAddString($ll, $literal = str_split("}"));
+      LinkedListAddString($ll, $literal = str_split("}"));
       $i = $i + 1.0;
     }else if($c == "["){
-      lLinkedListAddString($ll, $literal = str_split("["));
+      LinkedListAddString($ll, $literal = str_split("["));
       $i = $i + 1.0;
     }else if($c == "]"){
-      lLinkedListAddString($ll, $literal = str_split("]"));
+      LinkedListAddString($ll, $literal = str_split("]"));
       $i = $i + 1.0;
     }else if($c == ":"){
-      lLinkedListAddString($ll, $literal = str_split(":"));
+      LinkedListAddString($ll, $literal = str_split(":"));
       $i = $i + 1.0;
     }else if($c == ","){
-      lLinkedListAddString($ll, $literal = str_split(","));
+      LinkedListAddString($ll, $literal = str_split(","));
       $i = $i + 1.0;
     }else if($c == "f"){
       $success = GetJSONPrimitiveName($json, $i, $errorMessages, $literal = str_split("false"), $tokenReference);
       if($success){
-        lLinkedListAddString($ll, $literal = str_split("false"));
+        LinkedListAddString($ll, $literal = str_split("false"));
         $i = $i + count(str_split("false"));
       }
     }else if($c == "t"){
       $success = GetJSONPrimitiveName($json, $i, $errorMessages, $literal = str_split("true"), $tokenReference);
       if($success){
-        lLinkedListAddString($ll, $literal = str_split("true"));
+        LinkedListAddString($ll, $literal = str_split("true"));
         $i = $i + count(str_split("true"));
       }
     }else if($c == "n"){
       $success = GetJSONPrimitiveName($json, $i, $errorMessages, $literal = str_split("null"), $tokenReference);
       if($success){
-        lLinkedListAddString($ll, $literal = str_split("null"));
+        LinkedListAddString($ll, $literal = str_split("null"));
         $i = $i + count(str_split("null"));
       }
     }else if($c == " " || $c == "\n" || $c == "\t" || $c == "\r"){
@@ -913,28 +945,28 @@ function JSONTokenize(&$json, $tokensReference, $errorMessages){
     }else if($c == "\""){
       $success = GetJSONString($json, $i, $tokenReference, $stringLength, $errorMessages);
       if($success){
-        lLinkedListAddString($ll, $tokenReference->string);
+        LinkedListAddString($ll, $tokenReference->string);
         $i = $i + $stringLength->numberValue;
       }
     }else if(IsJSONNumberCharacter($c)){
       $success = GetJSONNumberToken($json, $i, $tokenReference, $errorMessages);
       if($success){
-        lLinkedListAddString($ll, $tokenReference->string);
+        LinkedListAddString($ll, $tokenReference->string);
         $i = $i + count($tokenReference->string);
       }
     }else{
-      $str = strConcatenateCharacter($literal = str_split("Invalid start of Token: "), $c);
+      $str = ConcatenateCharacter($literal = str_split("Invalid start of Token: "), $c);
       $stringReference = CreateStringReference($str);
-      lAddStringRef($errorMessages, $stringReference);
+      AddStringRef($errorMessages, $stringReference);
       $i = $i + 1.0;
       $success = false;
     }
   }
 
   if($success){
-    lLinkedListAddString($ll, $literal = str_split("<end>"));
-    $tokensReference->stringArray = lLinkedListStringsToArray($ll);
-    lFreeLinkedListString($ll);
+    LinkedListAddString($ll, $literal = str_split("<end>"));
+    $tokensReference->stringArray = LinkedListStringsToArray($ll);
+    FreeLinkedListString($ll);
   }
 
   return $success;
@@ -952,7 +984,7 @@ function GetJSONNumberToken(&$json, $start, $tokenReference, $errorMessages){
     }
   }
 
-  $numberString = strSubstring($json, $start, $end);
+  $numberString = Substring($json, $start, $end);
 
   $success = IsValidJSONNumber($numberString, $errorMessages);
 
@@ -973,7 +1005,7 @@ function IsValidJSONNumber(&$n, $errorMessages){
     $success = IsValidJSONNumberAfterSign($n, $i, $errorMessages);
   }else{
     $success = false;
-    lAddStringRef($errorMessages, CreateStringReference($literal = str_split("Number must contain at least one digit.")));
+    AddStringRef($errorMessages, CreateStringReference($literal = str_split("Number must contain at least one digit.")));
   }
 
   return $success;
@@ -997,7 +1029,7 @@ function IsValidJSONNumberAfterSign(&$n, $i, $errorMessages){
     }
   }else{
     $success = false;
-    lAddStringRef($errorMessages, CreateStringReference($literal = str_split("A number must start with 0-9 (after the optional sign).")));
+    AddStringRef($errorMessages, CreateStringReference($literal = str_split("A number must start with 0-9 (after the optional sign).")));
   }
 
   return $success;
@@ -1036,11 +1068,11 @@ function IsValidJSONNumberFromDotOrExponent(&$n, $i, $errorMessages){
         }
       }else{
         $success = false;
-        lAddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be numbers after the decimal point.")));
+        AddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be numbers after the decimal point.")));
       }
     }else{
       $success = false;
-      lAddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be numbers after the decimal point.")));
+      AddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be numbers after the decimal point.")));
     }
   }
 
@@ -1050,20 +1082,20 @@ function IsValidJSONNumberFromDotOrExponent(&$n, $i, $errorMessages){
       $success = IsValidJSONNumberFromExponent($n, $i, $errorMessages);
     }else{
       $success = false;
-      lAddStringRef($errorMessages, CreateStringReference($literal = str_split("Expected e or E.")));
+      AddStringRef($errorMessages, CreateStringReference($literal = str_split("Expected e or E.")));
     }
   }else if($i == count($n) && $success){
     /* If number with decimal point. */
     $success = true;
   }else{
     $success = false;
-    lAddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be numbers after the decimal point.")));
+    AddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be numbers after the decimal point.")));
   }
 
   if($wasDotAndOrE){
   }else{
     $success = false;
-    lAddStringRef($errorMessages, CreateStringReference($literal = str_split("Exprected decimal point or e or E.")));
+    AddStringRef($errorMessages, CreateStringReference($literal = str_split("Exprected decimal point or e or E.")));
   }
 
   return $success;
@@ -1088,19 +1120,19 @@ function IsValidJSONNumberFromExponent(&$n, $i, $errorMessages){
           $success = true;
         }else{
           $success = false;
-          lAddStringRef($errorMessages, CreateStringReference($literal = str_split("There was characters following the exponent.")));
+          AddStringRef($errorMessages, CreateStringReference($literal = str_split("There was characters following the exponent.")));
         }
       }else{
         $success = false;
-        lAddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be a digit following the optional exponent sign.")));
+        AddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be a digit following the optional exponent sign.")));
       }
     }else{
       $success = false;
-      lAddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be a digit following optional the exponent sign.")));
+      AddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be a digit following optional the exponent sign.")));
     }
   }else{
     $success = false;
-    lAddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be a sign or a digit following e or E.")));
+    AddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be a sign or a digit following e or E.")));
   }
 
   return $success;
@@ -1136,12 +1168,12 @@ function GetJSONPrimitiveName(&$string, $start, $errorMessages, &$primitive, $to
       }
     }else{
       $str = array();
-      $str = strConcatenateString($str, $literal = str_split("Primitive invalid: "));
-      $str = strAppendCharacter($str, $c);
-      $str = strAppendString($str, $literal = str_split(" vs "));
-      $str = strAppendCharacter($str, $p);
+      $str = ConcatenateString($str, $literal = str_split("Primitive invalid: "));
+      $str = AppendCharacter($str, $c);
+      $str = AppendString($str, $literal = str_split(" vs "));
+      $str = AppendCharacter($str, $p);
 
-      lAddStringRef($errorMessages, CreateStringReference($str));
+      AddStringRef($errorMessages, CreateStringReference($str));
       $done = true;
       $success = false;
     }
@@ -1158,7 +1190,7 @@ function GetJSONPrimitiveName(&$string, $start, $errorMessages, &$primitive, $to
       $token = str_split("null");
     }
   }else{
-    lAddStringRef($errorMessages, CreateStringReference($literal = str_split("Primitive invalid")));
+    AddStringRef($errorMessages, CreateStringReference($literal = str_split("Primitive invalid")));
     $success = false;
   }
 
@@ -1229,7 +1261,7 @@ function GetJSONString(&$json, $start, $tokenReference, $stringLengthReference, 
     $tokenReference->string = $string;
     $success = true;
   }else{
-    lAddStringRef($errorMessages, CreateStringReference($literal = str_split("End of string was not found.")));
+    AddStringRef($errorMessages, CreateStringReference($literal = str_split("End of string was not found.")));
     $success = false;
   }
 
@@ -1265,22 +1297,22 @@ function IsValidJSONStringInJSON(&$json, $start, $characterCount, $stringLengthR
                 if(nCharacterIsNumberCharacterInBase($c, 16.0) || $c == "a" || $c == "b" || $c == "c" || $c == "d" || $c == "e" || $c == "f"){
                 }else{
                   $success = false;
-                  lAddStringRef($errorMessages, CreateStringReference($literal = str_split("\\u must be followed by four hexadecimal digits.")));
+                  AddStringRef($errorMessages, CreateStringReference($literal = str_split("\\u must be followed by four hexadecimal digits.")));
                 }
               }
               $characterCount->numberValue = $characterCount->numberValue + 1.0;
               $i = $i + 4.0;
             }else{
               $success = false;
-              lAddStringRef($errorMessages, CreateStringReference($literal = str_split("\\u must be followed by four characters.")));
+              AddStringRef($errorMessages, CreateStringReference($literal = str_split("\\u must be followed by four characters.")));
             }
           }else{
             $success = false;
-            lAddStringRef($errorMessages, CreateStringReference($literal = str_split("Escaped character invalid.")));
+            AddStringRef($errorMessages, CreateStringReference($literal = str_split("Escaped character invalid.")));
           }
         }else{
           $success = false;
-          lAddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be at least two character after string escape.")));
+          AddStringRef($errorMessages, CreateStringReference($literal = str_split("There must be at least two character after string escape.")));
         }
       }else if($json[$i] == "\""){
         $characterCount->numberValue = $characterCount->numberValue + 1.0;
@@ -1290,7 +1322,7 @@ function IsValidJSONStringInJSON(&$json, $start, $characterCount, $stringLengthR
       }
     }else{
       $success = false;
-      lAddStringRef($errorMessages, CreateStringReference($literal = str_split("Unicode code points 0-31 not allowed in JSON string.")));
+      AddStringRef($errorMessages, CreateStringReference($literal = str_split("Unicode code points 0-31 not allowed in JSON string.")));
     }
   }
 
@@ -1298,7 +1330,7 @@ function IsValidJSONStringInJSON(&$json, $start, $characterCount, $stringLengthR
     $stringLengthReference->numberValue = $i - $start;
   }else{
     $success = false;
-    lAddStringRef($errorMessages, CreateStringReference($literal = str_split("String must end with \".")));
+    AddStringRef($errorMessages, CreateStringReference($literal = str_split("String must end with \".")));
   }
 
   return $success;
@@ -1440,12 +1472,16 @@ function ComputeJSONBooleanStringLength($element){
 }
 function ComputeJSONNumberStringLength($element){
 
-  if(abs($element->number) >= 10.0**15.0 || abs($element->number) <= 10.0**(-15.0)){
-    $a = nCreateStringScientificNotationDecimalFromNumber($element->number);
-    $length = count($a);
+  if($element->number != 0.0){
+    if(abs($element->number) >= 10.0**15.0 || abs($element->number) <= 10.0**(-15.0)){
+      $a = nCreateStringScientificNotationDecimalFromNumber($element->number);
+      $length = count($a);
+    }else{
+      $a = nCreateStringDecimalFromNumber($element->number);
+      $length = count($a);
+    }
   }else{
-    $a = nCreateStringDecimalFromNumber($element->number);
-    $length = count($a);
+    $length = 1.0;
   }
 
   return $length;
@@ -1578,7 +1614,7 @@ function &WriteJSON($element){
   }else if(StringsEqual($element->type, $literal = str_split("number"))){
     WriteNumber($element, $result, $index);
   }else if(StringsEqual($element->type, $literal = str_split("null"))){
-    strWriteStringToStingStream($result, $index, $literal = str_split("null"));
+    WriteStringToStingStream($result, $index, $literal = str_split("null"));
   }else if(StringsEqual($element->type, $literal = str_split("boolean"))){
     WriteBooleanValue($element, $result, $index);
   }
@@ -1587,43 +1623,47 @@ function &WriteJSON($element){
 }
 function WriteBooleanValue($element, &$result, $index){
   if($element->booleanValue){
-    strWriteStringToStingStream($result, $index, $literal = str_split("true"));
+    WriteStringToStingStream($result, $index, $literal = str_split("true"));
   }else{
-    strWriteStringToStingStream($result, $index, $literal = str_split("false"));
+    WriteStringToStingStream($result, $index, $literal = str_split("false"));
   }
 }
 function WriteNumber($element, &$result, $index){
 
-  if(abs($element->number) >= 10.0**15.0 || abs($element->number) <= 10.0**(-15.0)){
-    $numberString = nCreateStringScientificNotationDecimalFromNumber($element->number);
+  if($element->number != 0.0){
+    if(abs($element->number) >= 10.0**15.0 || abs($element->number) <= 10.0**(-15.0)){
+      $numberString = nCreateStringScientificNotationDecimalFromNumber($element->number);
+    }else{
+      $numberString = nCreateStringDecimalFromNumber($element->number);
+    }
   }else{
     $numberString = nCreateStringDecimalFromNumber($element->number);
   }
 
-  strWriteStringToStingStream($result, $index, $numberString);
+  WriteStringToStingStream($result, $index, $numberString);
 }
 function WriteArray($element, &$result, $index){
 
-  strWriteStringToStingStream($result, $index, $literal = str_split("["));
+  WriteStringToStingStream($result, $index, $literal = str_split("["));
 
   for($i = 0.0; $i < count($element->array); $i = $i + 1.0){
     $arrayElement = $element->array[$i];
 
     $s = WriteJSON($arrayElement);
-    strWriteStringToStingStream($result, $index, $s);
+    WriteStringToStingStream($result, $index, $s);
 
     if($i + 1.0 != count($element->array)){
-      strWriteStringToStingStream($result, $index, $literal = str_split(","));
+      WriteStringToStingStream($result, $index, $literal = str_split(","));
     }
   }
 
-  strWriteStringToStingStream($result, $index, $literal = str_split("]"));
+  WriteStringToStingStream($result, $index, $literal = str_split("]"));
 }
 function WriteString($element, &$result, $index){
-  strWriteStringToStingStream($result, $index, $literal = str_split("\""));
+  WriteStringToStingStream($result, $index, $literal = str_split("\""));
   $element->string = JSONEscapeString($element->string);
-  strWriteStringToStingStream($result, $index, $element->string);
-  strWriteStringToStingStream($result, $index, $literal = str_split("\""));
+  WriteStringToStingStream($result, $index, $element->string);
+  WriteStringToStingStream($result, $index, $literal = str_split("\""));
 }
 function &JSONEscapeString(&$string){
 
@@ -1636,9 +1676,9 @@ function &JSONEscapeString(&$string){
   for($i = 0.0; $i < count($string); $i = $i + 1.0){
     if(JSONMustBeEscaped($string[$i], $lettersReference)){
       $escaped = JSONEscapeCharacter($string[$i]);
-      strWriteStringToStingStream($ns, $index, $escaped);
+      WriteStringToStingStream($ns, $index, $escaped);
     }else{
-      strWriteCharacterToStingStream($ns, $index, $string[$i]);
+      WriteCharacterToStingStream($ns, $index, $string[$i]);
     }
   }
 
@@ -1757,7 +1797,7 @@ function JSONMustBeEscaped($c, $letters){
 }
 function WriteObject($element, &$result, $index){
 
-  strWriteStringToStingStream($result, $index, $literal = str_split("{"));
+  WriteStringToStingStream($result, $index, $literal = str_split("{"));
 
   $keys = GetStringElementMapKeySet($element->object);
   for($i = 0.0; $i < count($keys->stringArray); $i = $i + 1.0){
@@ -1765,20 +1805,20 @@ function WriteObject($element, &$result, $index){
     $key = JSONEscapeString($key);
     $objectElement = GetObjectValue($element->object, $key);
 
-    strWriteStringToStingStream($result, $index, $literal = str_split("\""));
-    strWriteStringToStingStream($result, $index, $key);
-    strWriteStringToStingStream($result, $index, $literal = str_split("\""));
-    strWriteStringToStingStream($result, $index, $literal = str_split(":"));
+    WriteStringToStingStream($result, $index, $literal = str_split("\""));
+    WriteStringToStingStream($result, $index, $key);
+    WriteStringToStingStream($result, $index, $literal = str_split("\""));
+    WriteStringToStingStream($result, $index, $literal = str_split(":"));
 
     $s = WriteJSON($objectElement);
-    strWriteStringToStingStream($result, $index, $s);
+    WriteStringToStingStream($result, $index, $s);
 
     if($i + 1.0 != count($keys->stringArray)){
-      strWriteStringToStingStream($result, $index, $literal = str_split(","));
+      WriteStringToStingStream($result, $index, $literal = str_split(","));
     }
   }
 
-  strWriteStringToStingStream($result, $index, $literal = str_split("}"));
+  WriteStringToStingStream($result, $index, $literal = str_split("}"));
 }
 function ReadJSON(&$string, $elementReference, $errorMessages){
 
@@ -1823,21 +1863,21 @@ function GetJSONValueRecursive(&$tokens, $i, $depth, $elementReference, $errorMe
     $elementReference->element = CreateNumberElement($stringToDecimalResult);
     $i->numberValue = $i->numberValue + 1.0;
   }else if($token[0.0] == "\""){
-    $substr = strSubstring($token, 1.0, count($token) - 1.0);
+    $substr = Substring($token, 1.0, count($token) - 1.0);
     $elementReference->element = CreateStringElement($substr);
     $i->numberValue = $i->numberValue + 1.0;
   }else{
     $str = array();
-    $str = strConcatenateString($str, $literal = str_split("Invalid token first in value: "));
-    $str = strAppendString($str, $token);
-    lAddStringRef($errorMessages, CreateStringReference($str));
+    $str = ConcatenateString($str, $literal = str_split("Invalid token first in value: "));
+    $str = AppendString($str, $token);
+    AddStringRef($errorMessages, CreateStringReference($str));
     $success = false;
   }
 
   if($success && $depth == 0.0){
     if(StringsEqual($tokens[$i->numberValue]->string, $literal = str_split("<end>"))){
     }else{
-      lAddStringRef($errorMessages, CreateStringReference($literal = str_split("The outer value cannot have any tokens following it.")));
+      AddStringRef($errorMessages, CreateStringReference($literal = str_split("The outer value cannot have any tokens following it.")));
       $success = false;
     }
   }
@@ -1846,7 +1886,7 @@ function GetJSONValueRecursive(&$tokens, $i, $depth, $elementReference, $errorMe
 }
 function GetJSONObject(&$tokens, $i, $depth, $elementReference, $errorMessages){
 
-  $keys = lCreateLinkedListString();
+  $keys = CreateLinkedListString();
   $values = CreateLinkedListElements();
   $element = CreateObjectElement(0.0);
   $valueReference = new stdClass();
@@ -1867,9 +1907,9 @@ function GetJSONObject(&$tokens, $i, $depth, $elementReference, $errorMessages){
           $success = GetJSONValueRecursive($tokens, $i, $depth, $valueReference, $errorMessages);
 
           if($success){
-            $keystring = strSubstring($key, 1.0, count($key) - 1.0);
+            $keystring = Substring($key, 1.0, count($key) - 1.0);
             $value = $valueReference->element;
-            lLinkedListAddString($keys, $keystring);
+            LinkedListAddString($keys, $keystring);
             LinkedListAddElement($values, $value);
 
             $comma = $tokens[$i->numberValue]->string;
@@ -1882,15 +1922,15 @@ function GetJSONObject(&$tokens, $i, $depth, $elementReference, $errorMessages){
           }
         }else{
           $str = array();
-          $str = strConcatenateString($str, $literal = str_split("Expected colon after key in object: "));
-          $str = strAppendString($str, $colon);
-          lAddStringRef($errorMessages, CreateStringReference($str));
+          $str = ConcatenateString($str, $literal = str_split("Expected colon after key in object: "));
+          $str = AppendString($str, $colon);
+          AddStringRef($errorMessages, CreateStringReference($str));
 
           $success = false;
           $done = true;
         }
       }else{
-        lAddStringRef($errorMessages, CreateStringReference($literal = str_split("Expected string as key in object.")));
+        AddStringRef($errorMessages, CreateStringReference($literal = str_split("Expected string as key in object.")));
 
         $done = true;
         $success = false;
@@ -1905,17 +1945,17 @@ function GetJSONObject(&$tokens, $i, $depth, $elementReference, $errorMessages){
       /* OK */
       unset($element->object->stringListRef->stringArray);
       unset($element->object->elementListRef->array);
-      $element->object->stringListRef->stringArray = lLinkedListStringsToArray($keys);
+      $element->object->stringListRef->stringArray = LinkedListStringsToArray($keys);
       $element->object->elementListRef->array = LinkedListElementsToArray($values);
       $elementReference->element = $element;
       $i->numberValue = $i->numberValue + 1.0;
     }else{
-      lAddStringRef($errorMessages, CreateStringReference($literal = str_split("Expected close curly brackets at end of object value.")));
+      AddStringRef($errorMessages, CreateStringReference($literal = str_split("Expected close curly brackets at end of object value.")));
       $success = false;
     }
   }
 
-  lFreeLinkedListString($keys);
+  FreeLinkedListString($keys);
   FreeLinkedListElements($values);
   unset($valueReference);
 
@@ -1960,7 +2000,7 @@ function GetJSONArray(&$tokens, $i, $depth, $elementReference, $errorMessages){
     unset($element->array);
     $element->array = LinkedListElementsToArray($elements);
   }else{
-    lAddStringRef($errorMessages, CreateStringReference($literal = str_split("Expected close square bracket at end of array.")));
+    AddStringRef($errorMessages, CreateStringReference($literal = str_split("Expected close square bracket at end of array.")));
     $success = false;
   }
 
@@ -2000,7 +2040,7 @@ function GetObjectValueWithCheck($stringElementMap, &$key, $foundReference){
   return $result;
 }
 function PutStringElementMap($stringElementMap, &$keystring, $value){
-  lAddStringRef($stringElementMap->stringListRef, CreateStringReference($keystring));
+  AddStringRef($stringElementMap->stringListRef, CreateStringReference($keystring));
   AddElementRef($stringElementMap->elementListRef, $value);
 }
 function SetStringElementMap($stringElementMap, $index, &$keystring, $value){
@@ -2871,6 +2911,35 @@ function LinkedListToDynamicArrayNumbers($ll){
 
   return $da;
 }
+function DynamicArrayNumbersIndexOf($arr, $n, $foundReference){
+
+  $found = false;
+  for($i = 0.0; $i < $arr->length &&  !$found ; $i = $i + 1.0){
+    if($arr->array[$i] == $n){
+      $found = true;
+    }
+  }
+  if( !$found ){
+    $i = -1.0;
+  }else{
+    $i = $i - 1.0;
+  }
+
+  $foundReference->booleanValue = $found;
+
+  return $i;
+}
+function DynamicArrayNumbersIsInArray($arr, $n){
+
+  $found = false;
+  for($i = 0.0; $i < $arr->length &&  !$found ; $i = $i + 1.0){
+    if($arr->array[$i] == $n){
+      $found = true;
+    }
+  }
+
+  return $found;
+}
 function &AddCharacter(&$list, $a){
 
   $newlist = array_fill(0, count($list) + 1.0, 0);
@@ -2913,28 +2982,28 @@ function GetCharacterRef($list, $i){
 function RemoveCharacterRef($list, $i){
   $list->string = RemoveCharacter($list->string, $i);
 }
-function sWriteStringToStingStream(&$stream, $index, &$src){
+function WriteStringToStingStream(&$stream, $index, &$src){
 
   for($i = 0.0; $i < count($src); $i = $i + 1.0){
     $stream[$index->numberValue + $i] = $src[$i];
   }
   $index->numberValue = $index->numberValue + count($src);
 }
-function sWriteCharacterToStingStream(&$stream, $index, $src){
+function WriteCharacterToStingStream(&$stream, $index, $src){
   $stream[$index->numberValue] = $src;
   $index->numberValue = $index->numberValue + 1.0;
 }
-function sWriteBooleanToStingStream(&$stream, $index, $src){
+function WriteBooleanToStingStream(&$stream, $index, $src){
   if($src){
-    sWriteStringToStingStream($stream, $index, $literal = str_split("true"));
+    WriteStringToStingStream($stream, $index, $literal = str_split("true"));
   }else{
-    sWriteStringToStingStream($stream, $index, $literal = str_split("false"));
+    WriteStringToStingStream($stream, $index, $literal = str_split("false"));
   }
 }
-function sSubstringWithCheck(&$string, $from, $to, $stringReference){
+function SubstringWithCheck(&$string, $from, $to, $stringReference){
 
   if($from >= 0.0 && $from <= count($string) && $to >= 0.0 && $to <= count($string) && $from <= $to){
-    $stringReference->string = sSubstring($string, $from, $to);
+    $stringReference->string = Substring($string, $from, $to);
     $success = true;
   }else{
     $success = false;
@@ -2942,7 +3011,7 @@ function sSubstringWithCheck(&$string, $from, $to, $stringReference){
 
   return $success;
 }
-function &sSubstring(&$string, $from, $to){
+function &Substring(&$string, $from, $to){
 
   $length = $to - $from;
 
@@ -2954,15 +3023,15 @@ function &sSubstring(&$string, $from, $to){
 
   return $n;
 }
-function &sAppendString(&$s1, &$s2){
+function &AppendString(&$s1, &$s2){
 
-  $newString = sConcatenateString($s1, $s2);
+  $newString = ConcatenateString($s1, $s2);
 
   unset($s1);
 
   return $newString;
 }
-function &sConcatenateString(&$s1, &$s2){
+function &ConcatenateString(&$s1, &$s2){
 
   $newString = array_fill(0, count($s1) + count($s2), 0);
 
@@ -2976,15 +3045,15 @@ function &sConcatenateString(&$s1, &$s2){
 
   return $newString;
 }
-function &sAppendCharacter(&$string, $c){
+function &AppendCharacter(&$string, $c){
 
-  $newString = sConcatenateCharacter($string, $c);
+  $newString = ConcatenateCharacter($string, $c);
 
   unset($string);
 
   return $newString;
 }
-function &sConcatenateCharacter(&$string, $c){
+function &ConcatenateCharacter(&$string, $c){
   $newString = array_fill(0, count($string) + 1.0, 0);
 
   for($i = 0.0; $i < count($string); $i = $i + 1.0){
@@ -2995,18 +3064,18 @@ function &sConcatenateCharacter(&$string, $c){
 
   return $newString;
 }
-function &sSplitByCharacter(&$toSplit, $splitBy){
+function &SplitByCharacter(&$toSplit, $splitBy){
 
   $stringToSplitBy = array_fill(0, 1.0, 0);
   $stringToSplitBy[0.0] = $splitBy;
 
-  $split = sSplitByString($toSplit, $stringToSplitBy);
+  $split = SplitByString($toSplit, $stringToSplitBy);
 
   unset($stringToSplitBy);
 
   return $split;
 }
-function sIndexOfCharacter(&$string, $character, $indexReference){
+function IndexOfCharacter(&$string, $character, $indexReference){
 
   $found = false;
   for($i = 0.0; $i < count($string) &&  !$found ; $i = $i + 1.0){
@@ -3018,18 +3087,18 @@ function sIndexOfCharacter(&$string, $character, $indexReference){
 
   return $found;
 }
-function sSubstringEqualsWithCheck(&$string, $from, &$substring, $equalsReference){
+function SubstringEqualsWithCheck(&$string, $from, &$substring, $equalsReference){
 
   if($from < count($string)){
     $success = true;
-    $equalsReference->booleanValue = sSubstringEquals($string, $from, $substring);
+    $equalsReference->booleanValue = SubstringEquals($string, $from, $substring);
   }else{
     $success = false;
   }
 
   return $success;
 }
-function sSubstringEquals(&$string, $from, &$substring){
+function SubstringEquals(&$string, $from, &$substring){
 
   $equal = true;
   if(count($string) - $from >= count($substring)){
@@ -3044,11 +3113,11 @@ function sSubstringEquals(&$string, $from, &$substring){
 
   return $equal;
 }
-function sIndexOfString(&$string, &$substring, $indexReference){
+function IndexOfString(&$string, &$substring, $indexReference){
 
   $found = false;
   for($i = 0.0; $i < count($string) - count($substring) + 1.0 &&  !$found ; $i = $i + 1.0){
-    if(sSubstringEquals($string, $i, $substring)){
+    if(SubstringEquals($string, $i, $substring)){
       $found = true;
       $indexReference->numberValue = $i;
     }
@@ -3056,7 +3125,7 @@ function sIndexOfString(&$string, &$substring, $indexReference){
 
   return $found;
 }
-function sContainsCharacter(&$string, $character){
+function ContainsCharacter(&$string, $character){
 
   $found = false;
   for($i = 0.0; $i < count($string) &&  !$found ; $i = $i + 1.0){
@@ -3067,22 +3136,22 @@ function sContainsCharacter(&$string, $character){
 
   return $found;
 }
-function sContainsString(&$string, &$substring){
-  return sIndexOfString($string, $substring, new stdClass());
+function ContainsString(&$string, &$substring){
+  return IndexOfString($string, $substring, new stdClass());
 }
-function sToUpperCase(&$string){
+function ToUpperCase(&$string){
 
   for($i = 0.0; $i < count($string); $i = $i + 1.0){
     $string[$i] = charToUpperCase($string[$i]);
   }
 }
-function sToLowerCase(&$string){
+function ToLowerCase(&$string){
 
   for($i = 0.0; $i < count($string); $i = $i + 1.0){
     $string[$i] = charToLowerCase($string[$i]);
   }
 }
-function sEqualsIgnoreCase(&$a, &$b){
+function EqualsIgnoreCase(&$a, &$b){
 
   if(count($a) == count($b)){
     $equal = true;
@@ -3097,14 +3166,14 @@ function sEqualsIgnoreCase(&$a, &$b){
 
   return $equal;
 }
-function &sReplaceString(&$string, &$toReplace, &$replaceWith){
+function &ReplaceString(&$string, &$toReplace, &$replaceWith){
 
   $da = CreateDynamicArrayCharacters();
 
   $equalsReference = new stdClass();
 
   for($i = 0.0; $i < count($string); ){
-    $success = sSubstringEqualsWithCheck($string, $i, $toReplace, $equalsReference);
+    $success = SubstringEqualsWithCheck($string, $i, $toReplace, $equalsReference);
     if($success){
       $success = $equalsReference->booleanValue;
     }
@@ -3126,7 +3195,7 @@ function &sReplaceString(&$string, &$toReplace, &$replaceWith){
 
   return $result;
 }
-function &sReplaceCharacterToNew(&$string, $toReplace, $replaceWith){
+function &ReplaceCharacterToNew(&$string, $toReplace, $replaceWith){
 
   $result = array_fill(0, count($string), 0);
 
@@ -3140,7 +3209,7 @@ function &sReplaceCharacterToNew(&$string, $toReplace, $replaceWith){
 
   return $result;
 }
-function sReplaceCharacter(&$string, $toReplace, $replaceWith){
+function ReplaceCharacter(&$string, $toReplace, $replaceWith){
 
   for($i = 0.0; $i < count($string); $i = $i + 1.0){
     if($string[$i] == $toReplace){
@@ -3148,7 +3217,7 @@ function sReplaceCharacter(&$string, $toReplace, $replaceWith){
     }
   }
 }
-function &sTrim(&$string){
+function &Trimx(&$string){
 
   /* Find whitepaces at the start. */
   $lastWhitespaceLocationStart = -1.0;
@@ -3173,32 +3242,32 @@ function &sTrim(&$string){
   }
 
   if($lastWhitespaceLocationStart < $lastWhitespaceLocationEnd){
-    $result = sSubstring($string, $lastWhitespaceLocationStart + 1.0, $lastWhitespaceLocationEnd);
+    $result = Substring($string, $lastWhitespaceLocationStart + 1.0, $lastWhitespaceLocationEnd);
   }else{
     $result = array_fill(0, 0.0, 0);
   }
 
   return $result;
 }
-function sStartsWith(&$string, &$start){
+function StartsWith(&$string, &$start){
 
   $startsWithString = false;
   if(count($string) >= count($start)){
-    $startsWithString = sSubstringEquals($string, 0.0, $start);
+    $startsWithString = SubstringEquals($string, 0.0, $start);
   }
 
   return $startsWithString;
 }
-function sEndsWith(&$string, &$end){
+function EndsWith(&$string, &$end){
 
   $endsWithString = false;
   if(count($string) >= count($end)){
-    $endsWithString = sSubstringEquals($string, count($string) - count($end), $end);
+    $endsWithString = SubstringEquals($string, count($string) - count($end), $end);
   }
 
   return $endsWithString;
 }
-function &sSplitByString(&$toSplit, &$splitBy){
+function &SplitByString(&$toSplit, &$splitBy){
 
   $split = array_fill(0, 0.0, 0);
 
@@ -3206,14 +3275,14 @@ function &sSplitByString(&$toSplit, &$splitBy){
   for($i = 0.0; $i < count($toSplit); ){
     $c = $toSplit[$i];
 
-    if(sSubstringEquals($toSplit, $i, $splitBy)){
+    if(SubstringEquals($toSplit, $i, $splitBy)){
       $n = new stdClass();
       $n->string = $next;
       $split = AddString($split, $n);
       $next = array_fill(0, 0.0, 0);
       $i = $i + count($splitBy);
     }else{
-      $next = sAppendCharacter($next, $c);
+      $next = AppendCharacter($next, $c);
       $i = $i + 1.0;
     }
   }
@@ -3224,7 +3293,7 @@ function &sSplitByString(&$toSplit, &$splitBy){
 
   return $split;
 }
-function sStringIsBefore(&$a, &$b){
+function StringIsBefore(&$a, &$b){
 
   $before = false;
   $equal = true;
@@ -3254,331 +3323,49 @@ function sStringIsBefore(&$a, &$b){
 
   return $before;
 }
-function strWriteStringToStingStream(&$stream, $index, &$src){
+function &JoinStringsWithSeparator(&$strings, &$separator){
 
-  for($i = 0.0; $i < count($src); $i = $i + 1.0){
-    $stream[$index->numberValue + $i] = $src[$i];
+  $index = CreateNumberReference(0.0);
+
+  $length = 0.0;
+  for($i = 0.0; $i < count($strings); $i = $i + 1.0){
+    $length = $length + count($strings[$i]->string);
   }
-  $index->numberValue = $index->numberValue + count($src);
-}
-function strWriteCharacterToStingStream(&$stream, $index, $src){
-  $stream[$index->numberValue] = $src;
-  $index->numberValue = $index->numberValue + 1.0;
-}
-function strWriteBooleanToStingStream(&$stream, $index, $src){
-  if($src){
-    strWriteStringToStingStream($stream, $index, $literal = str_split("true"));
-  }else{
-    strWriteStringToStingStream($stream, $index, $literal = str_split("false"));
-  }
-}
-function strSubstringWithCheck(&$string, $from, $to, $stringReference){
+  $length = $length + (count($strings) - 1.0)*count($separator);
 
-  if($from >= 0.0 && $from <= count($string) && $to >= 0.0 && $to <= count($string) && $from <= $to){
-    $stringReference->string = strSubstring($string, $from, $to);
-    $success = true;
-  }else{
-    $success = false;
-  }
+  $result = array_fill(0, $length, 0);
 
-  return $success;
-}
-function &strSubstring(&$string, $from, $to){
-
-  $length = $to - $from;
-
-  $n = array_fill(0, $length, 0);
-
-  for($i = $from; $i < $to; $i = $i + 1.0){
-    $n[$i - $from] = $string[$i];
-  }
-
-  return $n;
-}
-function &strAppendString(&$s1, &$s2){
-
-  $newString = strConcatenateString($s1, $s2);
-
-  unset($s1);
-
-  return $newString;
-}
-function &strConcatenateString(&$s1, &$s2){
-
-  $newString = array_fill(0, count($s1) + count($s2), 0);
-
-  for($i = 0.0; $i < count($s1); $i = $i + 1.0){
-    $newString[$i] = $s1[$i];
-  }
-
-  for($i = 0.0; $i < count($s2); $i = $i + 1.0){
-    $newString[count($s1) + $i] = $s2[$i];
-  }
-
-  return $newString;
-}
-function &strAppendCharacter(&$string, $c){
-
-  $newString = strConcatenateCharacter($string, $c);
-
-  unset($string);
-
-  return $newString;
-}
-function &strConcatenateCharacter(&$string, $c){
-  $newString = array_fill(0, count($string) + 1.0, 0);
-
-  for($i = 0.0; $i < count($string); $i = $i + 1.0){
-    $newString[$i] = $string[$i];
-  }
-
-  $newString[count($string)] = $c;
-
-  return $newString;
-}
-function &strSplitByCharacter(&$toSplit, $splitBy){
-
-  $stringToSplitBy = array_fill(0, 1.0, 0);
-  $stringToSplitBy[0.0] = $splitBy;
-
-  $split = strSplitByString($toSplit, $stringToSplitBy);
-
-  unset($stringToSplitBy);
-
-  return $split;
-}
-function strIndexOfCharacter(&$string, $character, $indexReference){
-
-  $found = false;
-  for($i = 0.0; $i < count($string) &&  !$found ; $i = $i + 1.0){
-    if($string[$i] == $character){
-      $found = true;
-      $indexReference->numberValue = $i;
+  for($i = 0.0; $i < count($strings); $i = $i + 1.0){
+    $string = $strings[$i]->string;
+    WriteStringToStingStream($result, $index, $string);
+    if($i + 1.0 < count($strings)){
+      WriteStringToStingStream($result, $index, $separator);
     }
   }
 
-  return $found;
-}
-function strSubstringEqualsWithCheck(&$string, $from, &$substring, $equalsReference){
-
-  if($from < count($string)){
-    $success = true;
-    $equalsReference->booleanValue = strSubstringEquals($string, $from, $substring);
-  }else{
-    $success = false;
-  }
-
-  return $success;
-}
-function strSubstringEquals(&$string, $from, &$substring){
-
-  $equal = true;
-  for($i = 0.0; $i < count($substring) && $equal; $i = $i + 1.0){
-    if($string[$from + $i] != $substring[$i]){
-      $equal = false;
-    }
-  }
-
-  return $equal;
-}
-function strIndexOfString(&$string, &$substring, $indexReference){
-
-  $found = false;
-  for($i = 0.0; $i < count($string) - count($substring) + 1.0 &&  !$found ; $i = $i + 1.0){
-    if(strSubstringEquals($string, $i, $substring)){
-      $found = true;
-      $indexReference->numberValue = $i;
-    }
-  }
-
-  return $found;
-}
-function strContainsCharacter(&$string, $character){
-
-  $found = false;
-  for($i = 0.0; $i < count($string) &&  !$found ; $i = $i + 1.0){
-    if($string[$i] == $character){
-      $found = true;
-    }
-  }
-
-  return $found;
-}
-function strContainsString(&$string, &$substring){
-  return strIndexOfString($string, $substring, new stdClass());
-}
-function strToUpperCase(&$string){
-
-  for($i = 0.0; $i < count($string); $i = $i + 1.0){
-    $string[$i] = charToUpperCase($string[$i]);
-  }
-}
-function strToLowerCase(&$string){
-
-  for($i = 0.0; $i < count($string); $i = $i + 1.0){
-    $string[$i] = charToLowerCase($string[$i]);
-  }
-}
-function strEqualsIgnoreCase(&$a, &$b){
-
-  if(count($a) == count($b)){
-    $equal = true;
-    for($i = 0.0; $i < count($a) && $equal; $i = $i + 1.0){
-      if(charToLowerCase($a[$i]) != charToLowerCase($b[$i])){
-        $equal = false;
-      }
-    }
-  }else{
-    $equal = false;
-  }
-
-  return $equal;
-}
-function &strReplaceString(&$string, &$toReplace, &$replaceWith){
-
-  $equalsReference = new stdClass();
-  $result = array_fill(0, 0.0, 0);
-
-  for($i = 0.0; $i < count($string); ){
-    $success = strSubstringEqualsWithCheck($string, $i, $toReplace, $equalsReference);
-    if($success){
-      $success = $equalsReference->booleanValue;
-    }
-
-    if($success && count($toReplace) > 0.0){
-      $result = strConcatenateString($result, $replaceWith);
-      $i = $i + count($toReplace);
-    }else{
-      $result = strConcatenateCharacter($result, $string[$i]);
-      $i = $i + 1.0;
-    }
-  }
+  unset($index);
 
   return $result;
 }
-function &strReplaceCharacter(&$string, $toReplace, $replaceWith){
+function &JoinStrings(&$strings){
 
-  $result = array_fill(0, 0.0, 0);
+  $index = CreateNumberReference(0.0);
 
-  for($i = 0.0; $i < count($string); $i = $i + 1.0){
-    if($string[$i] == $toReplace){
-      $result = strConcatenateCharacter($result, $replaceWith);
-    }else{
-      $result = strConcatenateCharacter($result, $string[$i]);
-    }
+  $length = 0.0;
+  for($i = 0.0; $i < count($strings); $i = $i + 1.0){
+    $length = $length + count($strings[$i]->string);
   }
+
+  $result = array_fill(0, $length, 0);
+
+  for($i = 0.0; $i < count($strings); $i = $i + 1.0){
+    $string = $strings[$i]->string;
+    WriteStringToStingStream($result, $index, $string);
+  }
+
+  unset($index);
 
   return $result;
-}
-function &strTrim(&$string){
-
-  /* Find whitepaces at the start. */
-  $lastWhitespaceLocationStart = -1.0;
-  $firstNonWhitespaceFound = false;
-  for($i = 0.0; $i < count($string) &&  !$firstNonWhitespaceFound ; $i = $i + 1.0){
-    if(charIsWhiteSpace($string[$i])){
-      $lastWhitespaceLocationStart = $i;
-    }else{
-      $firstNonWhitespaceFound = true;
-    }
-  }
-
-  /* Find whitepaces at the end. */
-  $lastWhitespaceLocationEnd = count($string);
-  $firstNonWhitespaceFound = false;
-  for($i = count($string) - 1.0; $i >= 0.0 &&  !$firstNonWhitespaceFound ; $i = $i - 1.0){
-    if(charIsWhiteSpace($string[$i])){
-      $lastWhitespaceLocationEnd = $i;
-    }else{
-      $firstNonWhitespaceFound = true;
-    }
-  }
-
-  if($lastWhitespaceLocationStart < $lastWhitespaceLocationEnd){
-    $result = strSubstring($string, $lastWhitespaceLocationStart + 1.0, $lastWhitespaceLocationEnd);
-  }else{
-    $result = array_fill(0, 0.0, 0);
-  }
-
-  return $result;
-}
-function strStartsWith(&$string, &$start){
-
-  $startsWithString = false;
-  if(count($string) >= count($start)){
-    $startsWithString = strSubstringEquals($string, 0.0, $start);
-  }
-
-  return $startsWithString;
-}
-function strEndsWith(&$string, &$end){
-
-  $endsWithString = false;
-  if(count($string) >= count($end)){
-    $endsWithString = strSubstringEquals($string, count($string) - count($end), $end);
-  }
-
-  return $endsWithString;
-}
-function &strSplitByString(&$toSplit, &$splitBy){
-
-  $split = array_fill(0, 0.0, 0);
-
-  $next = array_fill(0, 0.0, 0);
-  for($i = 0.0; $i < count($toSplit); ){
-    $c = $toSplit[$i];
-
-    if(strSubstringEquals($toSplit, $i, $splitBy)){
-      if(count($split) != 0.0 || $i != 0.0){
-        $n = new stdClass();
-        $n->string = $next;
-        $split = lAddString($split, $n);
-        $next = array_fill(0, 0.0, 0);
-        $i = $i + count($splitBy);
-      }
-    }else{
-      $next = strAppendCharacter($next, $c);
-      $i = $i + 1.0;
-    }
-  }
-
-  if(count($next) > 0.0){
-    $n = new stdClass();
-    $n->string = $next;
-    $split = lAddString($split, $n);
-  }
-
-  return $split;
-}
-function strStringIsBefore(&$a, &$b){
-
-  $before = false;
-  $equal = true;
-  $done = false;
-
-  if(count($a) == 0.0 && count($b) > 0.0){
-    $before = true;
-  }else{
-    for($i = 0.0; $i < count($a) && $i < count($b) &&  !$done ; $i = $i + 1.0){
-      if($a[$i] != $b[$i]){
-        $equal = false;
-      }
-      if(charCharacterIsBefore($a[$i], $b[$i])){
-        $before = true;
-      }
-      if(charCharacterIsBefore($b[$i], $a[$i])){
-        $done = true;
-      }
-    }
-
-    if($equal){
-      if(count($a) < count($b)){
-        $before = true;
-      }
-    }
-  }
-
-  return $before;
 }
 function &StringToNumberArray(&$string){
 
@@ -3926,7 +3713,14 @@ function &nCreateStringScientificNotationDecimalFromNumber($decimal){
     }
 
     if( !$done ){
-      for(; $decimal >= 10.0 || $decimal < 1.0; ){
+      $exponent = round(log10($decimal));
+      $exponent = min(99.0, $exponent);
+      $exponent = max(-99.0, $exponent);
+
+      $decimal = $decimal/10.0**$exponent;
+
+      /* Adjust */
+      for(; ($decimal >= 10.0 || $decimal < 1.0) && abs($exponent) < 99.0; ){
         $decimal = $decimal*$multiplier;
         $exponent = $exponent + $inc;
       }
@@ -3938,12 +3732,12 @@ function &nCreateStringScientificNotationDecimalFromNumber($decimal){
   nCreateStringFromNumberWithCheck($exponent, 10.0, $exponentReference);
 
   if( !$isPositive ){
-    $result = strAppendString($result, $literal = str_split("-"));
+    $result = AppendString($result, $literal = str_split("-"));
   }
 
-  $result = strAppendString($result, $mantissaReference->string);
-  $result = strAppendString($result, $literal = str_split("e"));
-  $result = strAppendString($result, $exponentReference->string);
+  $result = AppendString($result, $mantissaReference->string);
+  $result = AppendString($result, $literal = str_split("e"));
+  $result = AppendString($result, $exponentReference->string);
 
   return $result;
 }
@@ -3958,6 +3752,7 @@ function &nCreateStringDecimalFromNumber($decimal){
 }
 function nCreateStringFromNumberWithCheck($decimal, $base, $stringReference){
 
+  $string = CreateDynamicArrayCharacters();
   $isPositive = true;
 
   if($decimal < 0.0){
@@ -3966,15 +3761,13 @@ function nCreateStringFromNumberWithCheck($decimal, $base, $stringReference){
   }
 
   if($decimal == 0.0){
-    $stringReference->string = str_split("0");
+    DynamicArrayAddCharacter($string, "0");
     $success = true;
   }else{
     $characterReference = new stdClass();
 
     if(IsInteger($base)){
       $success = true;
-
-      $string = array_fill(0, 0.0, 0);
 
       $maximumDigits = nGetMaximumDigitsForBase($base);
 
@@ -3985,16 +3778,16 @@ function nCreateStringFromNumberWithCheck($decimal, $base, $stringReference){
       $hasPrintedPoint = false;
 
       if( !$isPositive ){
-        $string = strAppendCharacter($string, "-");
+        DynamicArrayAddCharacter($string, "-");
       }
 
       /* Print leading zeros. */
       if($digitPosition < 0.0){
-        $string = strAppendCharacter($string, "0");
-        $string = strAppendCharacter($string, ".");
+        DynamicArrayAddCharacter($string, "0");
+        DynamicArrayAddCharacter($string, ".");
         $hasPrintedPoint = true;
         for($i = 0.0; $i < -$digitPosition - 1.0; $i = $i + 1.0){
-          $string = strAppendCharacter($string, "0");
+          DynamicArrayAddCharacter($string, "0");
         }
       }
 
@@ -4008,7 +3801,7 @@ function nCreateStringFromNumberWithCheck($decimal, $base, $stringReference){
 
         if( !$hasPrintedPoint  && $digitPosition - $i + 1.0 == 0.0){
           if($decimal != 0.0){
-            $string = strAppendCharacter($string, ".");
+            DynamicArrayAddCharacter($string, ".");
           }
           $hasPrintedPoint = true;
         }
@@ -4018,26 +3811,31 @@ function nCreateStringFromNumberWithCheck($decimal, $base, $stringReference){
           $success = nGetSingleDigitCharacterFromNumberWithCheck($d, $base, $characterReference);
           if($success){
             $c = $characterReference->characterValue;
-            $string = strAppendCharacter($string, $c);
+            DynamicArrayAddCharacter($string, $c);
           }
         }
 
         if($success){
           $decimal = $decimal - $d*$base**($maximumDigits - $i - 1.0);
+          $decimal = max($decimal, 0.0);
+          $decimal = round($decimal);
         }
       }
 
       if($success){
         /* Print trailing zeros. */
         for($i = 0.0; $i < $digitPosition - $maximumDigits + 1.0; $i = $i + 1.0){
-          $string = strAppendCharacter($string, "0");
+          DynamicArrayAddCharacter($string, "0");
         }
-
-        $stringReference->string = $string;
       }
     }else{
       $success = false;
     }
+  }
+
+  if($success){
+    $stringReference->string = DynamicArrayCharactersToArray($string);
+    FreeDynamicArrayCharacters($string);
   }
 
   /* Done */
@@ -4157,6 +3955,7 @@ function nCreateNumberFromParts($base, $numberIsPositive, &$beforePoint, &$after
 function nExtractPartsFromNumberString(&$n, $base, $numberIsPositive, $beforePoint, $afterPoint, $exponentIsPositive, $exponent, $errorMessages){
 
   $i = 0.0;
+  $complete = false;
 
   if($i < count($n)){
     if($n[$i] == "-"){
@@ -4167,116 +3966,49 @@ function nExtractPartsFromNumberString(&$n, $base, $numberIsPositive, $beforePoi
       $i = $i + 1.0;
     }
 
-    $success = nExtractPartsFromNumberStringFromSign($n, $base, $i, $beforePoint, $afterPoint, $exponentIsPositive, $exponent, $errorMessages);
+    $success = true;
   }else{
     $success = false;
     $errorMessages->string = str_split("Number cannot have length zero.");
   }
 
-  return $success;
-}
-function nExtractPartsFromNumberStringFromSign(&$n, $base, $i, $beforePoint, $afterPoint, $exponentIsPositive, $exponent, $errorMessages){
-
-  $done = false;
-  $count = 0.0;
-  for(; $i + $count < count($n) &&  !$done ; ){
-    if(nCharacterIsNumberCharacterInBase($n[$i + $count], $base)){
-      $count = $count + 1.0;
-    }else{
-      $done = true;
-    }
-  }
-
-  if($count >= 1.0){
-    $beforePoint->numberArray = array_fill(0, $count, 0);
-
-    for($j = 0.0; $j < $count; $j = $j + 1.0){
-      $beforePoint->numberArray[$j] = nGetNumberFromNumberCharacterForBase($n[$i + $j], $base);
-    }
-
-    $i = $i + $count;
-
-    if($i < count($n)){
-      $success = nExtractPartsFromNumberStringFromPointOrExponent($n, $base, $i, $afterPoint, $exponentIsPositive, $exponent, $errorMessages);
-    }else{
-      $afterPoint->numberArray = array_fill(0, 0.0, 0);
-      $exponent->numberArray = array_fill(0, 0.0, 0);
-      $success = true;
-    }
-  }else{
-    $success = false;
-    $errorMessages->string = str_split("Number must have at least one number after the optional sign.");
-  }
-
-  return $success;
-}
-function nExtractPartsFromNumberStringFromPointOrExponent(&$n, $base, $i, $afterPoint, $exponentIsPositive, $exponent, $errorMessages){
-
-  if($n[$i] == "."){
-    $i = $i + 1.0;
-
-    if($i < count($n)){
-      $done = false;
-      $count = 0.0;
-      for(; $i + $count < count($n) &&  !$done ; ){
-        if(nCharacterIsNumberCharacterInBase($n[$i + $count], $base)){
-          $count = $count + 1.0;
-        }else{
-          $done = true;
-        }
-      }
-
-      if($count >= 1.0){
-        $afterPoint->numberArray = array_fill(0, $count, 0);
-
-        for($j = 0.0; $j < $count; $j = $j + 1.0){
-          $afterPoint->numberArray[$j] = nGetNumberFromNumberCharacterForBase($n[$i + $j], $base);
-        }
-
-        $i = $i + $count;
-
-        if($i < count($n)){
-          $success = nExtractPartsFromNumberStringFromExponent($n, $base, $i, $exponentIsPositive, $exponent, $errorMessages);
-        }else{
-          $exponent->numberArray = array_fill(0, 0.0, 0);
-          $success = true;
-        }
+  if($success){
+    $done = false;
+    $count = 0.0;
+    for(; $i + $count < count($n) &&  !$done ; ){
+      if(nCharacterIsNumberCharacterInBase($n[$i + $count], $base)){
+        $count = $count + 1.0;
       }else{
-        $success = false;
-        $errorMessages->string = str_split("There must be at least one digit after the decimal point.");
+        $done = true;
+      }
+    }
+
+    if($count >= 1.0){
+      $beforePoint->numberArray = array_fill(0, $count, 0);
+
+      for($j = 0.0; $j < $count; $j = $j + 1.0){
+        $beforePoint->numberArray[$j] = nGetNumberFromNumberCharacterForBase($n[$i + $j], $base);
+      }
+
+      $i = $i + $count;
+
+      if($i < count($n)){
+        $success = true;
+      }else{
+        $afterPoint->numberArray = array_fill(0, 0.0, 0);
+        $exponent->numberArray = array_fill(0, 0.0, 0);
+        $success = true;
+        $complete = true;
       }
     }else{
       $success = false;
-      $errorMessages->string = str_split("There must be at least one digit after the decimal point.");
+      $errorMessages->string = str_split("Number must have at least one number after the optional sign.");
     }
-  }else if($base <= 14.0 && ($n[$i] == "e" || $n[$i] == "E")){
-    if($i < count($n)){
-      $success = nExtractPartsFromNumberStringFromExponent($n, $base, $i, $exponentIsPositive, $exponent, $errorMessages);
-      $afterPoint->numberArray = array_fill(0, 0.0, 0);
-    }else{
-      $success = false;
-      $errorMessages->string = str_split("There must be at least one digit after the exponent.");
-    }
-  }else{
-    $success = false;
-    $errorMessages->string = str_split("Expected decimal point or exponent symbol.");
   }
 
-  return $success;
-}
-function nExtractPartsFromNumberStringFromExponent(&$n, $base, $i, $exponentIsPositive, $exponent, $errorMessages){
-
-  if($base <= 14.0 && ($n[$i] == "e" || $n[$i] == "E")){
-    $i = $i + 1.0;
-
-    if($i < count($n)){
-      if($n[$i] == "-"){
-        $exponentIsPositive->booleanValue = false;
-        $i = $i + 1.0;
-      }else if($n[$i] == "+"){
-        $exponentIsPositive->booleanValue = true;
-        $i = $i + 1.0;
-      }
+  if($success &&  !$complete ){
+    if($n[$i] == "."){
+      $i = $i + 1.0;
 
       if($i < count($n)){
         $done = false;
@@ -4290,19 +4022,20 @@ function nExtractPartsFromNumberStringFromExponent(&$n, $base, $i, $exponentIsPo
         }
 
         if($count >= 1.0){
-          $exponent->numberArray = array_fill(0, $count, 0);
+          $afterPoint->numberArray = array_fill(0, $count, 0);
 
           for($j = 0.0; $j < $count; $j = $j + 1.0){
-            $exponent->numberArray[$j] = nGetNumberFromNumberCharacterForBase($n[$i + $j], $base);
+            $afterPoint->numberArray[$j] = nGetNumberFromNumberCharacterForBase($n[$i + $j], $base);
           }
 
           $i = $i + $count;
 
-          if($i == count($n)){
+          if($i < count($n)){
             $success = true;
           }else{
-            $success = false;
-            $errorMessages->string = str_split("There cannot be any characters past the exponent of the number.");
+            $exponent->numberArray = array_fill(0, 0.0, 0);
+            $success = true;
+            $complete = true;
           }
         }else{
           $success = false;
@@ -4310,15 +4043,77 @@ function nExtractPartsFromNumberStringFromExponent(&$n, $base, $i, $exponentIsPo
         }
       }else{
         $success = false;
+        $errorMessages->string = str_split("There must be at least one digit after the decimal point.");
+      }
+    }else if($base <= 14.0 && ($n[$i] == "e" || $n[$i] == "E")){
+      if($i < count($n)){
+        $success = true;
+        $afterPoint->numberArray = array_fill(0, 0.0, 0);
+      }else{
+        $success = false;
+        $errorMessages->string = str_split("There must be at least one digit after the exponent.");
+      }
+    }else{
+      $success = false;
+      $errorMessages->string = str_split("Expected decimal point or exponent symbol.");
+    }
+  }
+
+  if($success &&  !$complete ){
+    if($base <= 14.0 && ($n[$i] == "e" || $n[$i] == "E")){
+      $i = $i + 1.0;
+
+      if($i < count($n)){
+        if($n[$i] == "-"){
+          $exponentIsPositive->booleanValue = false;
+          $i = $i + 1.0;
+        }else if($n[$i] == "+"){
+          $exponentIsPositive->booleanValue = true;
+          $i = $i + 1.0;
+        }
+
+        if($i < count($n)){
+          $done = false;
+          $count = 0.0;
+          for(; $i + $count < count($n) &&  !$done ; ){
+            if(nCharacterIsNumberCharacterInBase($n[$i + $count], $base)){
+              $count = $count + 1.0;
+            }else{
+              $done = true;
+            }
+          }
+
+          if($count >= 1.0){
+            $exponent->numberArray = array_fill(0, $count, 0);
+
+            for($j = 0.0; $j < $count; $j = $j + 1.0){
+              $exponent->numberArray[$j] = nGetNumberFromNumberCharacterForBase($n[$i + $j], $base);
+            }
+
+            $i = $i + $count;
+
+            if($i == count($n)){
+              $success = true;
+            }else{
+              $success = false;
+              $errorMessages->string = str_split("There cannot be any characters past the exponent of the number.");
+            }
+          }else{
+            $success = false;
+            $errorMessages->string = str_split("There must be at least one digit after the decimal point.");
+          }
+        }else{
+          $success = false;
+          $errorMessages->string = str_split("There must be at least one digit after the exponent symbol.");
+        }
+      }else{
+        $success = false;
         $errorMessages->string = str_split("There must be at least one digit after the exponent symbol.");
       }
     }else{
       $success = false;
-      $errorMessages->string = str_split("There must be at least one digit after the exponent symbol.");
+      $errorMessages->string = str_split("Expected exponent symbol.");
     }
-  }else{
-    $success = false;
-    $errorMessages->string = str_split("Expected exponent symbol.");
   }
 
   return $success;
@@ -4365,7 +4160,7 @@ function &nStringToNumberArray(&$str){
 }
 function nStringToNumberArrayWithCheck(&$str, $numberArrayReference, $errorMessage){
 
-  $numberStrings = strSplitByString($str, $literal = str_split(","));
+  $numberStrings = SplitByString($str, $literal = str_split(","));
 
   $numbers = array_fill(0, count($numberStrings), 0);
   $success = true;
@@ -4373,7 +4168,7 @@ function nStringToNumberArrayWithCheck(&$str, $numberArrayReference, $errorMessa
 
   for($i = 0.0; $i < count($numberStrings); $i = $i + 1.0){
     $numberString = $numberStrings[$i]->string;
-    $trimmedNumberString = strTrim($numberString);
+    $trimmedNumberString = Trimx($numberString);
     $success = nCreateNumberFromDecimalStringWithCheck($trimmedNumberString, $numberReference, $errorMessage);
     $numbers[$i] = $numberReference->numberValue;
 
@@ -4387,625 +4182,6 @@ function nStringToNumberArrayWithCheck(&$str, $numberArrayReference, $errorMessa
   $numberArrayReference->numberArray = $numbers;
 
   return $success;
-}
-function &lAddNumber(&$list, $a){
-
-  $newlist = array_fill(0, count($list) + 1.0, 0);
-  for($i = 0.0; $i < count($list); $i = $i + 1.0){
-    $newlist[$i] = $list[$i];
-  }
-  $newlist[count($list)] = $a;
-		
-  unset($list);
-		
-  return $newlist;
-}
-function lAddNumberRef($list, $i){
-  $list->numberArray = lAddNumber($list->numberArray, $i);
-}
-function &lRemoveNumber(&$list, $n){
-
-  $newlist = array_fill(0, count($list) - 1.0, 0);
-
-  if($n >= 0.0 && $n < count($list)){
-    for($i = 0.0; $i < count($list); $i = $i + 1.0){
-      if($i < $n){
-        $newlist[$i] = $list[$i];
-      }
-      if($i > $n){
-        $newlist[$i - 1.0] = $list[$i];
-      }
-    }
-
-    unset($list);
-  }else{
-    unset($newlist);
-  }
-		
-  return $newlist;
-}
-function lGetNumberRef($list, $i){
-  return $list->numberArray[$i];
-}
-function lRemoveNumberRef($list, $i){
-  $list->numberArray = lRemoveNumber($list->numberArray, $i);
-}
-function &lAddString(&$list, $a){
-
-  $newlist = array_fill(0, count($list) + 1.0, 0);
-
-  for($i = 0.0; $i < count($list); $i = $i + 1.0){
-    $newlist[$i] = $list[$i];
-  }
-  $newlist[count($list)] = $a;
-		
-  unset($list);
-		
-  return $newlist;
-}
-function lAddStringRef($list, $i){
-  $list->stringArray = lAddString($list->stringArray, $i);
-}
-function &lRemoveString(&$list, $n){
-
-  $newlist = array_fill(0, count($list) - 1.0, 0);
-
-  if($n >= 0.0 && $n < count($list)){
-    for($i = 0.0; $i < count($list); $i = $i + 1.0){
-      if($i < $n){
-        $newlist[$i] = $list[$i];
-      }
-      if($i > $n){
-        $newlist[$i - 1.0] = $list[$i];
-      }
-    }
-
-    unset($list);
-  }else{
-    unset($newlist);
-  }
-		
-  return $newlist;
-}
-function lGetStringRef($list, $i){
-  return $list->stringArray[$i];
-}
-function lRemoveStringRef($list, $i){
-  $list->stringArray = lRemoveString($list->stringArray, $i);
-}
-function &lAddBoolean(&$list, $a){
-
-  $newlist = array_fill(0, count($list) + 1.0, 0);
-  for($i = 0.0; $i < count($list); $i = $i + 1.0){
-    $newlist[$i] = $list[$i];
-  }
-  $newlist[count($list)] = $a;
-		
-  unset($list);
-		
-  return $newlist;
-}
-function lAddBooleanRef($list, $i){
-  $list->booleanArray = lAddBoolean($list->booleanArray, $i);
-}
-function &lRemoveBoolean(&$list, $n){
-
-  $newlist = array_fill(0, count($list) - 1.0, 0);
-
-  if($n >= 0.0 && $n < count($list)){
-    for($i = 0.0; $i < count($list); $i = $i + 1.0){
-      if($i < $n){
-        $newlist[$i] = $list[$i];
-      }
-      if($i > $n){
-        $newlist[$i - 1.0] = $list[$i];
-      }
-    }
-
-    unset($list);
-  }else{
-    unset($newlist);
-  }
-		
-  return $newlist;
-}
-function lGetBooleanRef($list, $i){
-  return $list->booleanArray[$i];
-}
-function lRemoveDecimalRef($list, $i){
-  $list->booleanArray = lRemoveBoolean($list->booleanArray, $i);
-}
-function lCreateLinkedListString(){
-
-  $ll = new stdClass();
-  $ll->first = new stdClass();
-  $ll->last = $ll->first;
-  $ll->last->end = true;
-
-  return $ll;
-}
-function lLinkedListAddString($ll, &$value){
-  $ll->last->end = false;
-  $ll->last->value = $value;
-  $ll->last->next = new stdClass();
-  $ll->last->next->end = true;
-  $ll->last = $ll->last->next;
-}
-function &lLinkedListStringsToArray($ll){
-
-  $node = $ll->first;
-
-  $length = lLinkedListStringsLength($ll);
-
-  $array = array_fill(0, $length, 0);
-
-  for($i = 0.0; $i < $length; $i = $i + 1.0){
-    $array[$i] = new stdClass();
-    $array[$i]->string = $node->value;
-    $node = $node->next;
-  }
-
-  return $array;
-}
-function lLinkedListStringsLength($ll){
-
-  $l = 0.0;
-  $node = $ll->first;
-  for(;  !$node->end ; ){
-    $node = $node->next;
-    $l = $l + 1.0;
-  }
-
-  return $l;
-}
-function lFreeLinkedListString($ll){
-
-  $node = $ll->first;
-
-  for(;  !$node->end ; ){
-    $prev = $node;
-    $node = $node->next;
-    unset($prev);
-  }
-
-  unset($node);
-}
-function lCreateLinkedListNumbers(){
-
-  $ll = new stdClass();
-  $ll->first = new stdClass();
-  $ll->last = $ll->first;
-  $ll->last->end = true;
-
-  return $ll;
-}
-function &lCreateLinkedListNumbersArray($length){
-
-  $lls = array_fill(0, $length, 0);
-  for($i = 0.0; $i < count($lls); $i = $i + 1.0){
-    $lls[$i] = lCreateLinkedListNumbers();
-  }
-
-  return $lls;
-}
-function lLinkedListAddNumber($ll, $value){
-  $ll->last->end = false;
-  $ll->last->value = $value;
-  $ll->last->next = new stdClass();
-  $ll->last->next->end = true;
-  $ll->last = $ll->last->next;
-}
-function lLinkedListNumbersLength($ll){
-
-  $l = 0.0;
-  $node = $ll->first;
-  for(;  !$node->end ; ){
-    $node = $node->next;
-    $l = $l + 1.0;
-  }
-
-  return $l;
-}
-function lLinkedListNumbersIndex($ll, $index){
-
-  $node = $ll->first;
-  for($i = 0.0; $i < $index; $i = $i + 1.0){
-    $node = $node->next;
-  }
-
-  return $node->value;
-}
-function lLinkedListInsertNumber($ll, $index, $value){
-
-  if($index == 0.0){
-    $tmp = $ll->first;
-    $ll->first = new stdClass();
-    $ll->first->next = $tmp;
-    $ll->first->value = $value;
-    $ll->first->end = false;
-  }else{
-    $node = $ll->first;
-    for($i = 0.0; $i < $index - 1.0; $i = $i + 1.0){
-      $node = $node->next;
-    }
-
-    $tmp = $node->next;
-    $node->next = new stdClass();
-    $node->next->next = $tmp;
-    $node->next->value = $value;
-    $node->next->end = false;
-  }
-}
-function lLinkedListSet($ll, $index, $value){
-
-  $node = $ll->first;
-  for($i = 0.0; $i < $index; $i = $i + 1.0){
-    $node = $node->next;
-  }
-
-  $node->next->value = $value;
-}
-function lLinkedListRemoveNumber($ll, $index){
-
-  $node = $ll->first;
-  $prev = $ll->first;
-
-  for($i = 0.0; $i < $index; $i = $i + 1.0){
-    $prev = $node;
-    $node = $node->next;
-  }
-
-  if($index == 0.0){
-    $ll->first = $prev->next;
-  }
-  if( !$prev->next->end ){
-    $prev->next = $prev->next->next;
-  }
-}
-function lFreeLinkedListNumbers($ll){
-
-  $node = $ll->first;
-
-  for(;  !$node->end ; ){
-    $prev = $node;
-    $node = $node->next;
-    unset($prev);
-  }
-
-  unset($node);
-}
-function lFreeLinkedListNumbersArray(&$lls){
-
-  for($i = 0.0; $i < count($lls); $i = $i + 1.0){
-    lFreeLinkedListNumbers($lls[$i]);
-  }
-  unset($lls);
-}
-function &lLinkedListNumbersToArray($ll){
-
-  $node = $ll->first;
-
-  $length = lLinkedListNumbersLength($ll);
-
-  $array = array_fill(0, $length, 0);
-
-  for($i = 0.0; $i < $length; $i = $i + 1.0){
-    $array[$i] = $node->value;
-    $node = $node->next;
-  }
-
-  return $array;
-}
-function lArrayToLinkedListNumbers(&$array){
-
-  $ll = lCreateLinkedListNumbers();
-
-  for($i = 0.0; $i < count($array); $i = $i + 1.0){
-    lLinkedListAddNumber($ll, $array[$i]);
-  }
-
-  return $ll;
-}
-function lLinkedListNumbersEqual($a, $b){
-
-  $an = $a->first;
-  $bn = $b->first;
-
-  $equal = true;
-  $done = false;
-  for(; $equal &&  !$done ; ){
-    if($an->end == $bn->end){
-      if($an->end){
-        $done = true;
-      }else if($an->value == $bn->value){
-        $an = $an->next;
-        $bn = $bn->next;
-      }else{
-        $equal = false;
-      }
-    }else{
-      $equal = false;
-    }
-  }
-
-  return $equal;
-}
-function lCreateLinkedListCharacter(){
-
-  $ll = new stdClass();
-  $ll->first = new stdClass();
-  $ll->last = $ll->first;
-  $ll->last->end = true;
-
-  return $ll;
-}
-function lLinkedListAddCharacter($ll, $value){
-  $ll->last->end = false;
-  $ll->last->value = $value;
-  $ll->last->next = new stdClass();
-  $ll->last->next->end = true;
-  $ll->last = $ll->last->next;
-}
-function &lLinkedListCharactersToArray($ll){
-
-  $node = $ll->first;
-
-  $length = lLinkedListCharactersLength($ll);
-
-  $array = array_fill(0, $length, 0);
-
-  for($i = 0.0; $i < $length; $i = $i + 1.0){
-    $array[$i] = $node->value;
-    $node = $node->next;
-  }
-
-  return $array;
-}
-function lLinkedListCharactersLength($ll){
-
-  $l = 0.0;
-  $node = $ll->first;
-  for(;  !$node->end ; ){
-    $node = $node->next;
-    $l = $l + 1.0;
-  }
-
-  return $l;
-}
-function lFreeLinkedListCharacter($ll){
-
-  $node = $ll->first;
-
-  for(;  !$node->end ; ){
-    $prev = $node;
-    $node = $node->next;
-    unset($prev);
-  }
-
-  unset($node);
-}
-function lCreateDynamicArrayNumbers(){
-
-  $da = new stdClass();
-  $da->array = array_fill(0, 10.0, 0);
-  $da->length = 0.0;
-
-  return $da;
-}
-function lCreateDynamicArrayNumbersWithInitialCapacity($capacity){
-
-  $da = new stdClass();
-  $da->array = array_fill(0, $capacity, 0);
-  $da->length = 0.0;
-
-  return $da;
-}
-function lDynamicArrayAddNumber($da, $value){
-  if($da->length == count($da->array)){
-    lDynamicArrayNumbersIncreaseSize($da);
-  }
-
-  $da->array[$da->length] = $value;
-  $da->length = $da->length + 1.0;
-}
-function lDynamicArrayNumbersIncreaseSize($da){
-
-  $newLength = round(count($da->array)*3.0/2.0);
-  $newArray = array_fill(0, $newLength, 0);
-
-  for($i = 0.0; $i < count($da->array); $i = $i + 1.0){
-    $newArray[$i] = $da->array[$i];
-  }
-
-  unset($da->array);
-
-  $da->array = $newArray;
-}
-function lDynamicArrayNumbersDecreaseSizeNecessary($da){
-
-  $needsDecrease = false;
-
-  if($da->length > 10.0){
-    $needsDecrease = $da->length <= round(count($da->array)*2.0/3.0);
-  }
-
-  return $needsDecrease;
-}
-function lDynamicArrayNumbersDecreaseSize($da){
-
-  $newLength = round(count($da->array)*2.0/3.0);
-  $newArray = array_fill(0, $newLength, 0);
-
-  for($i = 0.0; $i < count($da->array); $i = $i + 1.0){
-    $newArray[$i] = $da->array[$i];
-  }
-
-  unset($da->array);
-
-  $da->array = $newArray;
-}
-function lDynamicArrayNumbersIndex($da, $index){
-  return $da->array[$index];
-}
-function lDynamicArrayNumbersLength($da){
-  return $da->length;
-}
-function lDynamicArrayInsertNumber($da, $index, $value){
-
-  if($da->length == count($da->array)){
-    lDynamicArrayNumbersIncreaseSize($da);
-  }
-
-  for($i = $da->length; $i > $index; $i = $i - 1.0){
-    $da->array[$i] = $da->array[$i - 1.0];
-  }
-
-  $da->array[$index] = $value;
-
-  $da->length = $da->length + 1.0;
-}
-function lDynamicArraySet($da, $index, $value){
-  $da->array[$index] = $value;
-}
-function lDynamicArrayRemoveNumber($da, $index){
-
-  for($i = $index; $i < $da->length - 1.0; $i = $i + 1.0){
-    $da->array[$i] = $da->array[$i + 1.0];
-  }
-
-  $da->length = $da->length - 1.0;
-
-  if(lDynamicArrayNumbersDecreaseSizeNecessary($da)){
-    lDynamicArrayNumbersDecreaseSize($da);
-  }
-}
-function lFreeDynamicArrayNumbers($da){
-  unset($da->array);
-  unset($da);
-}
-function &lDynamicArrayNumbersToArray($da){
-
-  $array = array_fill(0, $da->length, 0);
-
-  for($i = 0.0; $i < $da->length; $i = $i + 1.0){
-    $array[$i] = $da->array[$i];
-  }
-
-  return $array;
-}
-function lArrayToDynamicArrayNumbersWithOptimalSize(&$array){
-
-  /*
-         c = 10*(3/2)^n
-         log(c) = log(10*(3/2)^n)
-         log(c) = log(10) + log((3/2)^n)
-         log(c) = 1 + log((3/2)^n)
-         log(c) - 1 = log((3/2)^n)
-         log(c) - 1 = n*log(3/2)
-         n = (log(c) - 1)/log(3/2)
-         */
-  $c = count($array);
-  $n = (log($c) - 1.0)/log(3.0/2.0);
-  $newCapacity = floor($n) + 1.0;
-
-  $da = lCreateDynamicArrayNumbersWithInitialCapacity($newCapacity);
-
-  for($i = 0.0; $i < count($array); $i = $i + 1.0){
-    $da->array[$i] = $array[$i];
-  }
-
-  return $da;
-}
-function lArrayToDynamicArrayNumbers(&$array){
-
-  $da = new stdClass();
-  $da->array = CopyNumberArray($array);
-  $da->length = count($array);
-
-  return $da;
-}
-function lDynamicArrayNumbersEqual($a, $b){
-
-  $equal = true;
-  if($a->length == $b->length){
-    for($i = 0.0; $i < $a->length && $equal; $i = $i + 1.0){
-      if($a->array[$i] != $b->array[$i]){
-        $equal = false;
-      }
-    }
-  }else{
-    $equal = false;
-  }
-
-  return $equal;
-}
-function lDynamicArrayNumbersToLinkedList($da){
-
-  $ll = lCreateLinkedListNumbers();
-
-  for($i = 0.0; $i < $da->length; $i = $i + 1.0){
-    lLinkedListAddNumber($ll, $da->array[$i]);
-  }
-
-  return $ll;
-}
-function lLinkedListToDynamicArrayNumbers($ll){
-
-  $node = $ll->first;
-
-  $da = new stdClass();
-  $da->length = lLinkedListNumbersLength($ll);
-
-  $da->array = array_fill(0, $da->length, 0);
-
-  for($i = 0.0; $i < $da->length; $i = $i + 1.0){
-    $da->array[$i] = $node->value;
-    $node = $node->next;
-  }
-
-  return $da;
-}
-function &lAddCharacter(&$list, $a){
-
-  $newlist = array_fill(0, count($list) + 1.0, 0);
-  for($i = 0.0; $i < count($list); $i = $i + 1.0){
-    $newlist[$i] = $list[$i];
-  }
-  $newlist[count($list)] = $a;
-		
-  unset($list);
-		
-  return $newlist;
-}
-function lAddCharacterRef($list, $i){
-  $list->string = lAddCharacter($list->string, $i);
-}
-function &lRemoveCharacter(&$list, $n){
-
-  $newlist = array_fill(0, count($list) - 1.0, 0);
-
-  if($n >= 0.0 && $n < count($list)){
-    for($i = 0.0; $i < count($list); $i = $i + 1.0){
-      if($i < $n){
-        $newlist[$i] = $list[$i];
-      }
-      if($i > $n){
-        $newlist[$i - 1.0] = $list[$i];
-      }
-    }
-
-    unset($list);
-  }else{
-    unset($newlist);
-  }
-
-  return $newlist;
-}
-function lGetCharacterRef($list, $i){
-  return $list->string[$i];
-}
-function lRemoveCharacterRef($list, $i){
-  $list->string = lRemoveCharacter($list->string, $i);
 }
 function Negate($x){
   return -$x;
@@ -5497,118 +4673,70 @@ function charToUpperCase($character){
 }
 function charIsUpperCase($character){
 
-  $isUpper = false;
+  $isUpper = true;
   if($character == "A"){
-    $isUpper = true;
   }else if($character == "B"){
-    $isUpper = true;
   }else if($character == "C"){
-    $isUpper = true;
   }else if($character == "D"){
-    $isUpper = true;
   }else if($character == "E"){
-    $isUpper = true;
   }else if($character == "F"){
-    $isUpper = true;
   }else if($character == "G"){
-    $isUpper = true;
   }else if($character == "H"){
-    $isUpper = true;
   }else if($character == "I"){
-    $isUpper = true;
   }else if($character == "J"){
-    $isUpper = true;
   }else if($character == "K"){
-    $isUpper = true;
   }else if($character == "L"){
-    $isUpper = true;
   }else if($character == "M"){
-    $isUpper = true;
   }else if($character == "N"){
-    $isUpper = true;
   }else if($character == "O"){
-    $isUpper = true;
   }else if($character == "P"){
-    $isUpper = true;
   }else if($character == "Q"){
-    $isUpper = true;
   }else if($character == "R"){
-    $isUpper = true;
   }else if($character == "S"){
-    $isUpper = true;
   }else if($character == "T"){
-    $isUpper = true;
   }else if($character == "U"){
-    $isUpper = true;
   }else if($character == "V"){
-    $isUpper = true;
   }else if($character == "W"){
-    $isUpper = true;
   }else if($character == "X"){
-    $isUpper = true;
   }else if($character == "Y"){
-    $isUpper = true;
   }else if($character == "Z"){
-    $isUpper = true;
+  }else{
+    $isUpper = false;
   }
 
   return $isUpper;
 }
 function charIsLowerCase($character){
 
-  $isLower = false;
+  $isLower = true;
   if($character == "a"){
-    $isLower = true;
   }else if($character == "b"){
-    $isLower = true;
   }else if($character == "c"){
-    $isLower = true;
   }else if($character == "d"){
-    $isLower = true;
   }else if($character == "e"){
-    $isLower = true;
   }else if($character == "f"){
-    $isLower = true;
   }else if($character == "g"){
-    $isLower = true;
   }else if($character == "h"){
-    $isLower = true;
   }else if($character == "i"){
-    $isLower = true;
   }else if($character == "j"){
-    $isLower = true;
   }else if($character == "k"){
-    $isLower = true;
   }else if($character == "l"){
-    $isLower = true;
   }else if($character == "m"){
-    $isLower = true;
   }else if($character == "n"){
-    $isLower = true;
   }else if($character == "o"){
-    $isLower = true;
   }else if($character == "p"){
-    $isLower = true;
   }else if($character == "q"){
-    $isLower = true;
   }else if($character == "r"){
-    $isLower = true;
   }else if($character == "s"){
-    $isLower = true;
   }else if($character == "t"){
-    $isLower = true;
   }else if($character == "u"){
-    $isLower = true;
   }else if($character == "v"){
-    $isLower = true;
   }else if($character == "w"){
-    $isLower = true;
   }else if($character == "x"){
-    $isLower = true;
   }else if($character == "y"){
-    $isLower = true;
   }else if($character == "z"){
-    $isLower = true;
+  }else{
+    $isLower = false;
   }
 
   return $isLower;
@@ -5618,113 +4746,73 @@ function charIsLetter($character){
 }
 function charIsNumber($character){
 
-  $isNumberx = false;
+  $isNumberx = true;
   if($character == "0"){
-    $isNumberx = true;
   }else if($character == "1"){
-    $isNumberx = true;
   }else if($character == "2"){
-    $isNumberx = true;
   }else if($character == "3"){
-    $isNumberx = true;
   }else if($character == "4"){
-    $isNumberx = true;
   }else if($character == "5"){
-    $isNumberx = true;
   }else if($character == "6"){
-    $isNumberx = true;
   }else if($character == "7"){
-    $isNumberx = true;
   }else if($character == "8"){
-    $isNumberx = true;
   }else if($character == "9"){
-    $isNumberx = true;
+  }else{
+    $isNumberx = false;
   }
 
   return $isNumberx;
 }
 function charIsWhiteSpace($character){
 
-  $isWhiteSpacex = false;
+  $isWhiteSpacex = true;
   if($character == " "){
-    $isWhiteSpacex = true;
   }else if($character == "\t"){
-    $isWhiteSpacex = true;
   }else if($character == "\n"){
-    $isWhiteSpacex = true;
   }else if($character == "\r"){
-    $isWhiteSpacex = true;
+  }else{
+    $isWhiteSpacex = false;
   }
 
   return $isWhiteSpacex;
 }
 function charIsSymbol($character){
 
-  $isSymbolx = false;
+  $isSymbolx = true;
   if($character == "!"){
-    $isSymbolx = true;
   }else if($character == "\""){
-    $isSymbolx = true;
   }else if($character == "#"){
-    $isSymbolx = true;
   }else if($character == "$"){
-    $isSymbolx = true;
   }else if($character == "%"){
-    $isSymbolx = true;
   }else if($character == "&"){
-    $isSymbolx = true;
   }else if($character == "\'"){
-    $isSymbolx = true;
   }else if($character == "("){
-    $isSymbolx = true;
   }else if($character == ")"){
-    $isSymbolx = true;
   }else if($character == "*"){
-    $isSymbolx = true;
   }else if($character == "+"){
-    $isSymbolx = true;
   }else if($character == ","){
-    $isSymbolx = true;
   }else if($character == "-"){
-    $isSymbolx = true;
   }else if($character == "."){
-    $isSymbolx = true;
   }else if($character == "/"){
-    $isSymbolx = true;
   }else if($character == ":"){
-    $isSymbolx = true;
   }else if($character == ";"){
-    $isSymbolx = true;
   }else if($character == "<"){
-    $isSymbolx = true;
   }else if($character == "="){
-    $isSymbolx = true;
   }else if($character == ">"){
-    $isSymbolx = true;
   }else if($character == "?"){
-    $isSymbolx = true;
   }else if($character == "@"){
-    $isSymbolx = true;
   }else if($character == "["){
-    $isSymbolx = true;
   }else if($character == "\\"){
-    $isSymbolx = true;
   }else if($character == "]"){
-    $isSymbolx = true;
   }else if($character == "^"){
-    $isSymbolx = true;
   }else if($character == "_"){
-    $isSymbolx = true;
   }else if($character == "`"){
-    $isSymbolx = true;
   }else if($character == "{"){
-    $isSymbolx = true;
   }else if($character == "|"){
-    $isSymbolx = true;
   }else if($character == "}"){
-    $isSymbolx = true;
   }else if($character == "~"){
-    $isSymbolx = true;
+  }else{
+    $isSymbolx = false;
   }
 
   return $isSymbolx;
@@ -5735,5 +4823,55 @@ function charCharacterIsBefore($a, $b){
   $bd = uniord($b);
 
   return $ad < $bd;
+}
+function charDecimalDigitToCharacter($digit){
+  if($digit == 1.0){
+    $c = "1";
+  }else if($digit == 2.0){
+    $c = "2";
+  }else if($digit == 3.0){
+    $c = "3";
+  }else if($digit == 4.0){
+    $c = "4";
+  }else if($digit == 5.0){
+    $c = "5";
+  }else if($digit == 6.0){
+    $c = "6";
+  }else if($digit == 7.0){
+    $c = "7";
+  }else if($digit == 8.0){
+    $c = "8";
+  }else if($digit == 9.0){
+    $c = "9";
+  }else{
+    $c = "0";
+  }
+  return $c;
+}
+function charCharacterToDecimalDigit($c){
+
+  if($c == "1"){
+    $digit = 1.0;
+  }else if($c == "2"){
+    $digit = 2.0;
+  }else if($c == "3"){
+    $digit = 3.0;
+  }else if($c == "4"){
+    $digit = 4.0;
+  }else if($c == "5"){
+    $digit = 5.0;
+  }else if($c == "6"){
+    $digit = 6.0;
+  }else if($c == "7"){
+    $digit = 7.0;
+  }else if($c == "8"){
+    $digit = 8.0;
+  }else if($c == "9"){
+    $digit = 9.0;
+  }else{
+    $digit = 0.0;
+  }
+
+  return $digit;
 }
 

@@ -1,5 +1,3 @@
-/* Downloaded from https://repo.progsbase.com - Code Developed Using progsbase. */
-
 #include "TextualTemplates.h"
 
 LinkedListNodes *CreateLinkedListNodes(){
@@ -175,7 +173,26 @@ _Bool GenerateTokensFromTemplate(wchar_t *template, size_t templateLength, Linke
 
   return success;
 }
-_Bool GenerateDocument(wchar_t *template, size_t templateLength, Element *data, StringReference *document, StringReference *errorMessage){
+_Bool GenerateDocument(wchar_t *template, size_t templateLength, wchar_t *json, size_t jsonLength, StringReference *document, StringReference *errorMessage){
+  ElementReference *data;
+  StringArrayReference *errorMessages;
+  _Bool success;
+
+  data = (ElementReference *)malloc(sizeof(ElementReference));
+  errorMessages = (StringArrayReference *)malloc(sizeof(StringArrayReference));
+
+  success = ReadJSON(json, jsonLength, data, errorMessages);
+
+  if(success){
+    success = GenerateDocumentBasedOnElement(template, templateLength, data->element, document, errorMessage);
+  }else{
+    errorMessage->string = JoinStringsWithSeparator(&errorMessage->stringLength, errorMessages->stringArray, errorMessages->stringArrayLength, strparam(L", "));
+    FreeStringArrayReference(errorMessages);
+  }
+
+  return success;
+}
+_Bool GenerateDocumentBasedOnElement(wchar_t *template, size_t templateLength, Element *data, StringReference *document, StringReference *errorMessage){
   LinkedListCharacters *ll;
   _Bool success;
   LinkedListStrings *tokens;
@@ -260,7 +277,7 @@ _Bool GenerateDocumentFromNode(Node *n, Element *data, LinkedListCharacters *ll,
         success = false;
         errorMessage->string = L"Key for printing not found in JSON object: ";
         errorMessage->stringLength = wcslen(errorMessage->string);
-        errorMessage->string = sConcatenateString(&errorMessage->stringLength, errorMessage->string, errorMessage->stringLength, n->p1, n->p1Length);
+        errorMessage->string = ConcatenateString(&errorMessage->stringLength, errorMessage->string, errorMessage->stringLength, n->p1, n->p1Length);
       }
     }else{
       success = false;
@@ -327,7 +344,7 @@ _Bool GenerateDocumentFromIf(Node *n, Element *data, LinkedListCharacters *ll, S
       success = false;
       errorMessage->string = L"Key for if not found in JSON object: ";
       errorMessage->stringLength = wcslen(errorMessage->string);
-      errorMessage->string = sConcatenateString(&errorMessage->stringLength, errorMessage->string, errorMessage->stringLength, n->p1, n->p1Length);
+      errorMessage->string = ConcatenateString(&errorMessage->stringLength, errorMessage->string, errorMessage->stringLength, n->p1, n->p1Length);
     }
   }else{
     success = false;
@@ -373,7 +390,7 @@ _Bool GenerateDocumentFromForeach(Node *n, Element *data, LinkedListCharacters *
       success = false;
       errorMessage->string = L"Key for foreach not found in JSON object: ";
       errorMessage->stringLength = wcslen(errorMessage->string);
-      errorMessage->string = sConcatenateString(&errorMessage->stringLength, errorMessage->string, errorMessage->stringLength, n->p2, n->p2Length);
+      errorMessage->string = ConcatenateString(&errorMessage->stringLength, errorMessage->string, errorMessage->stringLength, n->p2, n->p2Length);
     }
   }else{
     success = false;
@@ -596,8 +613,8 @@ _Bool ParseNodeString(wchar_t *token, size_t tokenLength, Node *node, StringRefe
   }else if(token[0] != '{'){
     isText = true;
   }else{
-    command = strSubstring(&commandLength, token, tokenLength, 1.0, tokenLength - 1.0);
-    parts = sSplitByCharacter(&partsLength, command, commandLength, ' ');
+    command = Substring(&commandLength, token, tokenLength, 1.0, tokenLength - 1.0);
+    parts = SplitByCharacter(&partsLength, command, commandLength, ' ');
 
     if(commandLength > 0.0){
       if(StringsEqual(parts[0]->string, parts[0]->stringLength, strparam(L"use"))){
@@ -670,12 +687,12 @@ _Bool ParseNodeString(wchar_t *token, size_t tokenLength, Node *node, StringRefe
   if(isText){
     node->type = L"text";
     node->typeLength = wcslen(node->type);
-    node->p1 = sReplaceString(&node->p1Length, token, tokenLength, strparam(L"\\{print "), strparam(L"{print "));
-    node->p1 = sReplaceString(&node->p1Length, node->p1, node->p1Length, strparam(L"\\{use "), strparam(L"{use "));
-    node->p1 = sReplaceString(&node->p1Length, node->p1, node->p1Length, strparam(L"\\{if "), strparam(L"{if "));
-    node->p1 = sReplaceString(&node->p1Length, node->p1, node->p1Length, strparam(L"\\{end}"), strparam(L"{end}"));
-    node->p1 = sReplaceString(&node->p1Length, node->p1, node->p1Length, strparam(L"\\{foreach "), strparam(L"{foreach "));
-    node->p1 = sReplaceString(&node->p1Length, node->p1, node->p1Length, strparam(L"\\{else}"), strparam(L"{else}"));
+    node->p1 = ReplaceString(&node->p1Length, token, tokenLength, strparam(L"\\{print "), strparam(L"{print "));
+    node->p1 = ReplaceString(&node->p1Length, node->p1, node->p1Length, strparam(L"\\{use "), strparam(L"{use "));
+    node->p1 = ReplaceString(&node->p1Length, node->p1, node->p1Length, strparam(L"\\{if "), strparam(L"{if "));
+    node->p1 = ReplaceString(&node->p1Length, node->p1, node->p1Length, strparam(L"\\{end}"), strparam(L"{end}"));
+    node->p1 = ReplaceString(&node->p1Length, node->p1, node->p1Length, strparam(L"\\{foreach "), strparam(L"{foreach "));
+    node->p1 = ReplaceString(&node->p1Length, node->p1, node->p1Length, strparam(L"\\{else}"), strparam(L"{else}"));
   }
 
   return success;
@@ -694,8 +711,30 @@ double test(){
   testGenerateDocument5(failures);
   testGenerateDocument6(failures);
   testGenerateDocument7(failures);
+  testGenerateDocument8(failures);
 
   return failures->numberValue;
+}
+void testGenerateDocument8(NumberReference *failures){
+  StringReference *document, *errorMessage;
+  _Bool success;
+  wchar_t *template, *json;
+  size_t templateLength, jsonLength;
+
+  document = (StringReference *)malloc(sizeof(StringReference));
+  errorMessage = (StringReference *)malloc(sizeof(StringReference));
+
+  template = L"This is a test: {print b} {foreach x in a}{print x}{end}.";
+  templateLength = wcslen(template);
+  json = L"{\"a\": [1, 2, 3], \"b\": 4}";
+  jsonLength = wcslen(json);
+  success = GenerateDocument(template, templateLength, json, jsonLength, document, errorMessage);
+
+  if(success){
+    AssertStringEquals(strparam(L"This is a test: 4 123."), document->string, document->stringLength, failures);
+  }
+
+  AssertTrue(success, failures);
 }
 void testTokenGeneration(NumberReference *failures){
   wchar_t *template;
@@ -804,7 +843,7 @@ void AssertTemplateResult(wchar_t *template, size_t templateLength, wchar_t *jso
   AssertTrue(success, failures);
 
   if(success){
-    success = GenerateDocument(template, templateLength, data->element, document, errorMessage);
+    success = GenerateDocumentBasedOnElement(template, templateLength, data->element, document, errorMessage);
 
     AssertTrue(success, failures);
 
@@ -830,7 +869,7 @@ void AssertTemplateError(wchar_t *template, size_t templateLength, wchar_t *json
   AssertTrue(success, failures);
 
   if(success){
-    success = GenerateDocument(template, templateLength, data->element, document, errorMessageRef);
+    success = GenerateDocumentBasedOnElement(template, templateLength, data->element, document, errorMessageRef);
 
     AssertFalse(success, failures);
 
@@ -998,9 +1037,9 @@ _Bool JSONTokenize(wchar_t *json, size_t jsonLength, StringArrayReference *token
   StringReference *stringReference, *tokenReference;
   NumberReference *stringLength;
   _Bool success;
-  lLinkedListStrings *ll;
+  LinkedListStrings *ll;
 
-  ll = lCreateLinkedListString();
+  ll = CreateLinkedListString();
   success = true;
 
   stringLength = (NumberReference *)malloc(sizeof(NumberReference));
@@ -1010,39 +1049,39 @@ _Bool JSONTokenize(wchar_t *json, size_t jsonLength, StringArrayReference *token
     c = json[(int)(i)];
 
     if(c == '{'){
-      lLinkedListAddString(ll, strparam(L"{"));
+      LinkedListAddString(ll, strparam(L"{"));
       i = i + 1.0;
     }else if(c == '}'){
-      lLinkedListAddString(ll, strparam(L"}"));
+      LinkedListAddString(ll, strparam(L"}"));
       i = i + 1.0;
     }else if(c == '['){
-      lLinkedListAddString(ll, strparam(L"["));
+      LinkedListAddString(ll, strparam(L"["));
       i = i + 1.0;
     }else if(c == ']'){
-      lLinkedListAddString(ll, strparam(L"]"));
+      LinkedListAddString(ll, strparam(L"]"));
       i = i + 1.0;
     }else if(c == ':'){
-      lLinkedListAddString(ll, strparam(L":"));
+      LinkedListAddString(ll, strparam(L":"));
       i = i + 1.0;
     }else if(c == ','){
-      lLinkedListAddString(ll, strparam(L","));
+      LinkedListAddString(ll, strparam(L","));
       i = i + 1.0;
     }else if(c == 'f'){
       success = GetJSONPrimitiveName(json, jsonLength, i, errorMessages, strparam(L"false"), tokenReference);
       if(success){
-        lLinkedListAddString(ll, strparam(L"false"));
+        LinkedListAddString(ll, strparam(L"false"));
         i = i + wcslen(L"false");
       }
     }else if(c == 't'){
       success = GetJSONPrimitiveName(json, jsonLength, i, errorMessages, strparam(L"true"), tokenReference);
       if(success){
-        lLinkedListAddString(ll, strparam(L"true"));
+        LinkedListAddString(ll, strparam(L"true"));
         i = i + wcslen(L"true");
       }
     }else if(c == 'n'){
       success = GetJSONPrimitiveName(json, jsonLength, i, errorMessages, strparam(L"null"), tokenReference);
       if(success){
-        lLinkedListAddString(ll, strparam(L"null"));
+        LinkedListAddString(ll, strparam(L"null"));
         i = i + wcslen(L"null");
       }
     }else if(c == ' ' || c == '\n' || c == '\t' || c == '\r'){
@@ -1051,28 +1090,28 @@ _Bool JSONTokenize(wchar_t *json, size_t jsonLength, StringArrayReference *token
     }else if(c == '\"'){
       success = GetJSONString(json, jsonLength, i, tokenReference, stringLength, errorMessages);
       if(success){
-        lLinkedListAddString(ll, tokenReference->string, tokenReference->stringLength);
+        LinkedListAddString(ll, tokenReference->string, tokenReference->stringLength);
         i = i + stringLength->numberValue;
       }
     }else if(IsJSONNumberCharacter(c)){
       success = GetJSONNumberToken(json, jsonLength, i, tokenReference, errorMessages);
       if(success){
-        lLinkedListAddString(ll, tokenReference->string, tokenReference->stringLength);
+        LinkedListAddString(ll, tokenReference->string, tokenReference->stringLength);
         i = i + tokenReference->stringLength;
       }
     }else{
-      str = strConcatenateCharacter(&strLength, strparam(L"Invalid start of Token: "), c);
+      str = ConcatenateCharacter(&strLength, strparam(L"Invalid start of Token: "), c);
       stringReference = CreateStringReference(str, strLength);
-      lAddStringRef(errorMessages, stringReference);
+      AddStringRef(errorMessages, stringReference);
       i = i + 1.0;
       success = false;
     }
   }
 
   if(success){
-    lLinkedListAddString(ll, strparam(L"<end>"));
-    tokensReference->stringArray = lLinkedListStringsToArray(&tokensReference->stringArrayLength, ll);
-    lFreeLinkedListString(ll);
+    LinkedListAddString(ll, strparam(L"<end>"));
+    tokensReference->stringArray = LinkedListStringsToArray(&tokensReference->stringArrayLength, ll);
+    FreeLinkedListString(ll);
   }
 
   return success;
@@ -1095,7 +1134,7 @@ _Bool GetJSONNumberToken(wchar_t *json, size_t jsonLength, double start, StringR
     }
   }
 
-  numberString = strSubstring(&numberStringLength, json, jsonLength, start, end);
+  numberString = Substring(&numberStringLength, json, jsonLength, start, end);
 
   success = IsValidJSONNumber(numberString, numberStringLength, errorMessages);
 
@@ -1119,7 +1158,7 @@ _Bool IsValidJSONNumber(wchar_t *n, size_t nLength, StringArrayReference *errorM
     success = IsValidJSONNumberAfterSign(n, nLength, i, errorMessages);
   }else{
     success = false;
-    lAddStringRef(errorMessages, CreateStringReference(strparam(L"Number must contain at least one digit.")));
+    AddStringRef(errorMessages, CreateStringReference(strparam(L"Number must contain at least one digit.")));
   }
 
   return success;
@@ -1144,7 +1183,7 @@ _Bool IsValidJSONNumberAfterSign(wchar_t *n, size_t nLength, double i, StringArr
     }
   }else{
     success = false;
-    lAddStringRef(errorMessages, CreateStringReference(strparam(L"A number must start with 0-9 (after the optional sign).")));
+    AddStringRef(errorMessages, CreateStringReference(strparam(L"A number must start with 0-9 (after the optional sign).")));
   }
 
   return success;
@@ -1185,11 +1224,11 @@ _Bool IsValidJSONNumberFromDotOrExponent(wchar_t *n, size_t nLength, double i, S
         }
       }else{
         success = false;
-        lAddStringRef(errorMessages, CreateStringReference(strparam(L"There must be numbers after the decimal point.")));
+        AddStringRef(errorMessages, CreateStringReference(strparam(L"There must be numbers after the decimal point.")));
       }
     }else{
       success = false;
-      lAddStringRef(errorMessages, CreateStringReference(strparam(L"There must be numbers after the decimal point.")));
+      AddStringRef(errorMessages, CreateStringReference(strparam(L"There must be numbers after the decimal point.")));
     }
   }
 
@@ -1199,20 +1238,20 @@ _Bool IsValidJSONNumberFromDotOrExponent(wchar_t *n, size_t nLength, double i, S
       success = IsValidJSONNumberFromExponent(n, nLength, i, errorMessages);
     }else{
       success = false;
-      lAddStringRef(errorMessages, CreateStringReference(strparam(L"Expected e or E.")));
+      AddStringRef(errorMessages, CreateStringReference(strparam(L"Expected e or E.")));
     }
   }else if(i == nLength && success){
     /* If number with decimal point. */
     success = true;
   }else{
     success = false;
-    lAddStringRef(errorMessages, CreateStringReference(strparam(L"There must be numbers after the decimal point.")));
+    AddStringRef(errorMessages, CreateStringReference(strparam(L"There must be numbers after the decimal point.")));
   }
 
   if(wasDotAndOrE){
   }else{
     success = false;
-    lAddStringRef(errorMessages, CreateStringReference(strparam(L"Exprected decimal point or e or E.")));
+    AddStringRef(errorMessages, CreateStringReference(strparam(L"Exprected decimal point or e or E.")));
   }
 
   return success;
@@ -1238,19 +1277,19 @@ _Bool IsValidJSONNumberFromExponent(wchar_t *n, size_t nLength, double i, String
           success = true;
         }else{
           success = false;
-          lAddStringRef(errorMessages, CreateStringReference(strparam(L"There was characters following the exponent.")));
+          AddStringRef(errorMessages, CreateStringReference(strparam(L"There was characters following the exponent.")));
         }
       }else{
         success = false;
-        lAddStringRef(errorMessages, CreateStringReference(strparam(L"There must be a digit following the optional exponent sign.")));
+        AddStringRef(errorMessages, CreateStringReference(strparam(L"There must be a digit following the optional exponent sign.")));
       }
     }else{
       success = false;
-      lAddStringRef(errorMessages, CreateStringReference(strparam(L"There must be a digit following optional the exponent sign.")));
+      AddStringRef(errorMessages, CreateStringReference(strparam(L"There must be a digit following optional the exponent sign.")));
     }
   }else{
     success = false;
-    lAddStringRef(errorMessages, CreateStringReference(strparam(L"There must be a sign or a digit following e or E.")));
+    AddStringRef(errorMessages, CreateStringReference(strparam(L"There must be a sign or a digit following e or E.")));
   }
 
   return success;
@@ -1298,12 +1337,12 @@ _Bool GetJSONPrimitiveName(wchar_t *string, size_t stringLength, double start, S
     }else{
       str = L"";
       strLength = wcslen(str);
-      str = strConcatenateString(&strLength, str, strLength, strparam(L"Primitive invalid: "));
-      str = strAppendCharacter(&strLength, str, strLength, c);
-      str = strAppendString(&strLength, str, strLength, strparam(L" vs "));
-      str = strAppendCharacter(&strLength, str, strLength, p);
+      str = ConcatenateString(&strLength, str, strLength, strparam(L"Primitive invalid: "));
+      str = AppendCharacter(&strLength, str, strLength, c);
+      str = AppendString(&strLength, str, strLength, strparam(L" vs "));
+      str = AppendCharacter(&strLength, str, strLength, p);
 
-      lAddStringRef(errorMessages, CreateStringReference(str, strLength));
+      AddStringRef(errorMessages, CreateStringReference(str, strLength));
       done = true;
       success = false;
     }
@@ -1323,7 +1362,7 @@ _Bool GetJSONPrimitiveName(wchar_t *string, size_t stringLength, double start, S
       tokenLength = wcslen(token);
     }
   }else{
-    lAddStringRef(errorMessages, CreateStringReference(strparam(L"Primitive invalid")));
+    AddStringRef(errorMessages, CreateStringReference(strparam(L"Primitive invalid")));
     success = false;
   }
 
@@ -1403,7 +1442,7 @@ _Bool GetJSONString(wchar_t *json, size_t jsonLength, double start, StringRefere
     tokenReference->stringLength = stringLength;
     success = true;
   }else{
-    lAddStringRef(errorMessages, CreateStringReference(strparam(L"End of string was not found.")));
+    AddStringRef(errorMessages, CreateStringReference(strparam(L"End of string was not found.")));
     success = false;
   }
 
@@ -1444,22 +1483,22 @@ _Bool IsValidJSONStringInJSON(wchar_t *json, size_t jsonLength, double start, Nu
                 if(nCharacterIsNumberCharacterInBase(c, 16.0) || c == 'a' || c == 'b' || c == 'c' || c == 'd' || c == 'e' || c == 'f'){
                 }else{
                   success = false;
-                  lAddStringRef(errorMessages, CreateStringReference(strparam(L"\\u must be followed by four hexadecimal digits.")));
+                  AddStringRef(errorMessages, CreateStringReference(strparam(L"\\u must be followed by four hexadecimal digits.")));
                 }
               }
               characterCount->numberValue = characterCount->numberValue + 1.0;
               i = i + 4.0;
             }else{
               success = false;
-              lAddStringRef(errorMessages, CreateStringReference(strparam(L"\\u must be followed by four characters.")));
+              AddStringRef(errorMessages, CreateStringReference(strparam(L"\\u must be followed by four characters.")));
             }
           }else{
             success = false;
-            lAddStringRef(errorMessages, CreateStringReference(strparam(L"Escaped character invalid.")));
+            AddStringRef(errorMessages, CreateStringReference(strparam(L"Escaped character invalid.")));
           }
         }else{
           success = false;
-          lAddStringRef(errorMessages, CreateStringReference(strparam(L"There must be at least two character after string escape.")));
+          AddStringRef(errorMessages, CreateStringReference(strparam(L"There must be at least two character after string escape.")));
         }
       }else if(json[(int)(i)] == '\"'){
         characterCount->numberValue = characterCount->numberValue + 1.0;
@@ -1469,7 +1508,7 @@ _Bool IsValidJSONStringInJSON(wchar_t *json, size_t jsonLength, double start, Nu
       }
     }else{
       success = false;
-      lAddStringRef(errorMessages, CreateStringReference(strparam(L"Unicode code points 0-31 not allowed in JSON string.")));
+      AddStringRef(errorMessages, CreateStringReference(strparam(L"Unicode code points 0-31 not allowed in JSON string.")));
     }
   }
 
@@ -1477,7 +1516,7 @@ _Bool IsValidJSONStringInJSON(wchar_t *json, size_t jsonLength, double start, Nu
     stringLengthReference->numberValue = i - start;
   }else{
     success = false;
-    lAddStringRef(errorMessages, CreateStringReference(strparam(L"String must end with \".")));
+    AddStringRef(errorMessages, CreateStringReference(strparam(L"String must end with \".")));
   }
 
   return success;
@@ -1646,12 +1685,16 @@ double ComputeJSONNumberStringLength(Element *element){
   wchar_t *a;
   size_t aLength;
 
-  if(fabs(element->number) >= pow(10.0, 15.0) || fabs(element->number) <= pow(10.0,  -15.0)){
-    a = nCreateStringScientificNotationDecimalFromNumber(&aLength, element->number);
-    length = aLength;
+  if(element->number != 0.0){
+    if(fabs(element->number) >= pow(10.0, 15.0) || fabs(element->number) <= pow(10.0,  -15.0)){
+      a = nCreateStringScientificNotationDecimalFromNumber(&aLength, element->number);
+      length = aLength;
+    }else{
+      a = nCreateStringDecimalFromNumber(&aLength, element->number);
+      length = aLength;
+    }
   }else{
-    a = nCreateStringDecimalFromNumber(&aLength, element->number);
-    length = aLength;
+    length = 1.0;
   }
 
   return length;
@@ -1822,7 +1865,7 @@ wchar_t *WriteJSON(size_t *returnArrayLength, Element *element){
   }else if(StringsEqual(element->type, element->typeLength, strparam(L"number"))){
     WriteNumber(element, result, resultLength, index);
   }else if(StringsEqual(element->type, element->typeLength, strparam(L"null"))){
-    strWriteStringToStingStream(result, resultLength, index, strparam(L"null"));
+    WriteStringToStingStream(result, resultLength, index, strparam(L"null"));
   }else if(StringsEqual(element->type, element->typeLength, strparam(L"boolean"))){
     WriteBooleanValue(element, result, resultLength, index);
   }
@@ -1832,22 +1875,26 @@ wchar_t *WriteJSON(size_t *returnArrayLength, Element *element){
 }
 void WriteBooleanValue(Element *element, wchar_t *result, size_t resultLength, NumberReference *index){
   if(element->booleanValue){
-    strWriteStringToStingStream(result, resultLength, index, strparam(L"true"));
+    WriteStringToStingStream(result, resultLength, index, strparam(L"true"));
   }else{
-    strWriteStringToStingStream(result, resultLength, index, strparam(L"false"));
+    WriteStringToStingStream(result, resultLength, index, strparam(L"false"));
   }
 }
 void WriteNumber(Element *element, wchar_t *result, size_t resultLength, NumberReference *index){
   wchar_t *numberString;
   size_t numberStringLength;
 
-  if(fabs(element->number) >= pow(10.0, 15.0) || fabs(element->number) <= pow(10.0,  -15.0)){
-    numberString = nCreateStringScientificNotationDecimalFromNumber(&numberStringLength, element->number);
+  if(element->number != 0.0){
+    if(fabs(element->number) >= pow(10.0, 15.0) || fabs(element->number) <= pow(10.0,  -15.0)){
+      numberString = nCreateStringScientificNotationDecimalFromNumber(&numberStringLength, element->number);
+    }else{
+      numberString = nCreateStringDecimalFromNumber(&numberStringLength, element->number);
+    }
   }else{
     numberString = nCreateStringDecimalFromNumber(&numberStringLength, element->number);
   }
 
-  strWriteStringToStingStream(result, resultLength, index, numberString, numberStringLength);
+  WriteStringToStingStream(result, resultLength, index, numberString, numberStringLength);
 }
 void WriteArray(Element *element, wchar_t *result, size_t resultLength, NumberReference *index){
   wchar_t *s;
@@ -1855,26 +1902,26 @@ void WriteArray(Element *element, wchar_t *result, size_t resultLength, NumberRe
   Element *arrayElement;
   double i;
 
-  strWriteStringToStingStream(result, resultLength, index, strparam(L"["));
+  WriteStringToStingStream(result, resultLength, index, strparam(L"["));
 
   for(i = 0.0; i < element->arrayLength; i = i + 1.0){
     arrayElement = element->array[(int)(i)];
 
     s = WriteJSON(&sLength, arrayElement);
-    strWriteStringToStingStream(result, resultLength, index, s, sLength);
+    WriteStringToStingStream(result, resultLength, index, s, sLength);
 
     if(i + 1.0 != element->arrayLength){
-      strWriteStringToStingStream(result, resultLength, index, strparam(L","));
+      WriteStringToStingStream(result, resultLength, index, strparam(L","));
     }
   }
 
-  strWriteStringToStingStream(result, resultLength, index, strparam(L"]"));
+  WriteStringToStingStream(result, resultLength, index, strparam(L"]"));
 }
 void WriteString(Element *element, wchar_t *result, size_t resultLength, NumberReference *index){
-  strWriteStringToStingStream(result, resultLength, index, strparam(L"\""));
+  WriteStringToStingStream(result, resultLength, index, strparam(L"\""));
   element->string = JSONEscapeString(&element->stringLength, element->string, element->stringLength);
-  strWriteStringToStingStream(result, resultLength, index, element->string, element->stringLength);
-  strWriteStringToStingStream(result, resultLength, index, strparam(L"\""));
+  WriteStringToStingStream(result, resultLength, index, element->string, element->stringLength);
+  WriteStringToStingStream(result, resultLength, index, strparam(L"\""));
 }
 wchar_t *JSONEscapeString(size_t *returnArrayLength, wchar_t *string, size_t stringLength){
   double i, length;
@@ -1892,9 +1939,9 @@ wchar_t *JSONEscapeString(size_t *returnArrayLength, wchar_t *string, size_t str
   for(i = 0.0; i < stringLength; i = i + 1.0){
     if(JSONMustBeEscaped(string[(int)(i)], lettersReference)){
       escaped = JSONEscapeCharacter(&escapedLength, string[(int)(i)]);
-      strWriteStringToStingStream(ns, nsLength, index, escaped, escapedLength);
+      WriteStringToStingStream(ns, nsLength, index, escaped, escapedLength);
     }else{
-      strWriteCharacterToStingStream(ns, nsLength, index, string[(int)(i)]);
+      WriteCharacterToStingStream(ns, nsLength, index, string[(int)(i)]);
     }
   }
 
@@ -2040,7 +2087,7 @@ void WriteObject(Element *element, wchar_t *result, size_t resultLength, NumberR
   StringArrayReference *keys;
   Element *objectElement;
 
-  strWriteStringToStingStream(result, resultLength, index, strparam(L"{"));
+  WriteStringToStingStream(result, resultLength, index, strparam(L"{"));
 
   keys = GetStringElementMapKeySet(element->object);
   for(i = 0.0; i < keys->stringArrayLength; i = i + 1.0){
@@ -2049,20 +2096,20 @@ void WriteObject(Element *element, wchar_t *result, size_t resultLength, NumberR
     key = JSONEscapeString(&keyLength, key, keyLength);
     objectElement = GetObjectValue(element->object, key, keyLength);
 
-    strWriteStringToStingStream(result, resultLength, index, strparam(L"\""));
-    strWriteStringToStingStream(result, resultLength, index, key, keyLength);
-    strWriteStringToStingStream(result, resultLength, index, strparam(L"\""));
-    strWriteStringToStingStream(result, resultLength, index, strparam(L":"));
+    WriteStringToStingStream(result, resultLength, index, strparam(L"\""));
+    WriteStringToStingStream(result, resultLength, index, key, keyLength);
+    WriteStringToStingStream(result, resultLength, index, strparam(L"\""));
+    WriteStringToStingStream(result, resultLength, index, strparam(L":"));
 
     s = WriteJSON(&sLength, objectElement);
-    strWriteStringToStingStream(result, resultLength, index, s, sLength);
+    WriteStringToStingStream(result, resultLength, index, s, sLength);
 
     if(i + 1.0 != keys->stringArrayLength){
-      strWriteStringToStingStream(result, resultLength, index, strparam(L","));
+      WriteStringToStingStream(result, resultLength, index, strparam(L","));
     }
   }
 
-  strWriteStringToStingStream(result, resultLength, index, strparam(L"}"));
+  WriteStringToStingStream(result, resultLength, index, strparam(L"}"));
 }
 _Bool ReadJSON(wchar_t *string, size_t stringLength, ElementReference *elementReference, StringArrayReference *errorMessages){
   StringArrayReference *tokenArrayReference;
@@ -2116,22 +2163,22 @@ _Bool GetJSONValueRecursive(StringReference **tokens, size_t tokensLength, Numbe
     elementReference->element = CreateNumberElement(stringToDecimalResult);
     i->numberValue = i->numberValue + 1.0;
   }else if(token[0] == '\"'){
-    substr = strSubstring(&substrLength, token, tokenLength, 1.0, tokenLength - 1.0);
+    substr = Substring(&substrLength, token, tokenLength, 1.0, tokenLength - 1.0);
     elementReference->element = CreateStringElement(substr, substrLength);
     i->numberValue = i->numberValue + 1.0;
   }else{
     str = L"";
     strLength = wcslen(str);
-    str = strConcatenateString(&strLength, str, strLength, strparam(L"Invalid token first in value: "));
-    str = strAppendString(&strLength, str, strLength, token, tokenLength);
-    lAddStringRef(errorMessages, CreateStringReference(str, strLength));
+    str = ConcatenateString(&strLength, str, strLength, strparam(L"Invalid token first in value: "));
+    str = AppendString(&strLength, str, strLength, token, tokenLength);
+    AddStringRef(errorMessages, CreateStringReference(str, strLength));
     success = false;
   }
 
   if(success && depth == 0.0){
     if(StringsEqual(tokens[(int)(i->numberValue)]->string, tokens[(int)(i->numberValue)]->stringLength, strparam(L"<end>"))){
     }else{
-      lAddStringRef(errorMessages, CreateStringReference(strparam(L"The outer value cannot have any tokens following it.")));
+      AddStringRef(errorMessages, CreateStringReference(strparam(L"The outer value cannot have any tokens following it.")));
       success = false;
     }
   }
@@ -2147,9 +2194,9 @@ _Bool GetJSONObject(StringReference **tokens, size_t tokensLength, NumberReferen
   size_t keystringLength, strLength;
   ElementReference *valueReference;
   LinkedListElements *values;
-  lLinkedListStrings *keys;
+  LinkedListStrings *keys;
 
-  keys = lCreateLinkedListString();
+  keys = CreateLinkedListString();
   values = CreateLinkedListElements();
   element = CreateObjectElement(0.0);
   valueReference = (ElementReference *)malloc(sizeof(ElementReference));
@@ -2172,9 +2219,9 @@ _Bool GetJSONObject(StringReference **tokens, size_t tokensLength, NumberReferen
           success = GetJSONValueRecursive(tokens, tokensLength, i, depth, valueReference, errorMessages);
 
           if(success){
-            keystring = strSubstring(&keystringLength, key, keyLength, 1.0, keyLength - 1.0);
+            keystring = Substring(&keystringLength, key, keyLength, 1.0, keyLength - 1.0);
             value = valueReference->element;
-            lLinkedListAddString(keys, keystring, keystringLength);
+            LinkedListAddString(keys, keystring, keystringLength);
             LinkedListAddElement(values, value);
 
             comma = tokens[(int)(i->numberValue)]->string;
@@ -2189,15 +2236,15 @@ _Bool GetJSONObject(StringReference **tokens, size_t tokensLength, NumberReferen
         }else{
           str = L"";
           strLength = wcslen(str);
-          str = strConcatenateString(&strLength, str, strLength, strparam(L"Expected colon after key in object: "));
-          str = strAppendString(&strLength, str, strLength, colon, colonLength);
-          lAddStringRef(errorMessages, CreateStringReference(str, strLength));
+          str = ConcatenateString(&strLength, str, strLength, strparam(L"Expected colon after key in object: "));
+          str = AppendString(&strLength, str, strLength, colon, colonLength);
+          AddStringRef(errorMessages, CreateStringReference(str, strLength));
 
           success = false;
           done = true;
         }
       }else{
-        lAddStringRef(errorMessages, CreateStringReference(strparam(L"Expected string as key in object.")));
+        AddStringRef(errorMessages, CreateStringReference(strparam(L"Expected string as key in object.")));
 
         done = true;
         success = false;
@@ -2213,17 +2260,17 @@ _Bool GetJSONObject(StringReference **tokens, size_t tokensLength, NumberReferen
       /* OK */
       free(element->object->stringListRef->stringArray);
       free(element->object->elementListRef->array);
-      element->object->stringListRef->stringArray = lLinkedListStringsToArray(&element->object->stringListRef->stringArrayLength, keys);
+      element->object->stringListRef->stringArray = LinkedListStringsToArray(&element->object->stringListRef->stringArrayLength, keys);
       element->object->elementListRef->array = LinkedListElementsToArray(&element->object->elementListRef->arrayLength, values);
       elementReference->element = element;
       i->numberValue = i->numberValue + 1.0;
     }else{
-      lAddStringRef(errorMessages, CreateStringReference(strparam(L"Expected close curly brackets at end of object value.")));
+      AddStringRef(errorMessages, CreateStringReference(strparam(L"Expected close curly brackets at end of object value.")));
       success = false;
     }
   }
 
-  lFreeLinkedListString(keys);
+  FreeLinkedListString(keys);
   FreeLinkedListElements(values);
   free(valueReference);
 
@@ -2277,7 +2324,7 @@ _Bool GetJSONArray(StringReference **tokens, size_t tokensLength, NumberReferenc
     free(element->array);
     element->array = LinkedListElementsToArray(&element->arrayLength, elements);
   }else{
-    lAddStringRef(errorMessages, CreateStringReference(strparam(L"Expected close square bracket at end of array.")));
+    AddStringRef(errorMessages, CreateStringReference(strparam(L"Expected close square bracket at end of array.")));
     success = false;
   }
 
@@ -2321,7 +2368,7 @@ Element *GetObjectValueWithCheck(StringElementMap *stringElementMap, wchar_t *ke
   return result;
 }
 void PutStringElementMap(StringElementMap *stringElementMap, wchar_t *keystring, size_t keystringLength, Element *value){
-  lAddStringRef(stringElementMap->stringListRef, CreateStringReference(keystring, keystringLength));
+  AddStringRef(stringElementMap->stringListRef, CreateStringReference(keystring, keystringLength));
   AddElementRef(stringElementMap->elementListRef, value);
 }
 void SetStringElementMap(StringElementMap *stringElementMap, double index, wchar_t *keystring, size_t keystringLength, Element *value){
@@ -3361,6 +3408,39 @@ DynamicArrayNumbers *LinkedListToDynamicArrayNumbers(LinkedListNumbers *ll){
 
   return da;
 }
+double DynamicArrayNumbersIndexOf(DynamicArrayNumbers *arr, double n, BooleanReference *foundReference){
+  _Bool found;
+  double i;
+
+  found = false;
+  for(i = 0.0; i < arr->length &&  !found ; i = i + 1.0){
+    if(arr->array[(int)(i)] == n){
+      found = true;
+    }
+  }
+  if( !found ){
+    i =  -1.0;
+  }else{
+    i = i - 1.0;
+  }
+
+  foundReference->booleanValue = found;
+
+  return i;
+}
+_Bool DynamicArrayNumbersIsInArray(DynamicArrayNumbers *arr, double n){
+  _Bool found;
+  double i;
+
+  found = false;
+  for(i = 0.0; i < arr->length &&  !found ; i = i + 1.0){
+    if(arr->array[(int)(i)] == n){
+      found = true;
+    }
+  }
+
+  return found;
+}
 wchar_t *AddCharacter(size_t *returnArrayLength, wchar_t *list, size_t listLength, wchar_t a){
   wchar_t *newlist;
   size_t newlistLength;
@@ -3413,7 +3493,7 @@ wchar_t GetCharacterRef(StringReference *list, double i){
 void RemoveCharacterRef(StringReference *list, double i){
   list->string = RemoveCharacter(&list->stringLength, list->string, list->stringLength, i);
 }
-void sWriteStringToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, wchar_t *src, size_t srcLength){
+void WriteStringToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, wchar_t *src, size_t srcLength){
   double i;
 
   for(i = 0.0; i < srcLength; i = i + 1.0){
@@ -3421,22 +3501,22 @@ void sWriteStringToStingStream(wchar_t *stream, size_t streamLength, NumberRefer
   }
   index->numberValue = index->numberValue + srcLength;
 }
-void sWriteCharacterToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, wchar_t src){
+void WriteCharacterToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, wchar_t src){
   stream[(int)(index->numberValue)] = src;
   index->numberValue = index->numberValue + 1.0;
 }
-void sWriteBooleanToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, _Bool src){
+void WriteBooleanToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, _Bool src){
   if(src){
-    sWriteStringToStingStream(stream, streamLength, index, strparam(L"true"));
+    WriteStringToStingStream(stream, streamLength, index, strparam(L"true"));
   }else{
-    sWriteStringToStingStream(stream, streamLength, index, strparam(L"false"));
+    WriteStringToStingStream(stream, streamLength, index, strparam(L"false"));
   }
 }
-_Bool sSubstringWithCheck(wchar_t *string, size_t stringLength, double from, double to, StringReference *stringReference){
+_Bool SubstringWithCheck(wchar_t *string, size_t stringLength, double from, double to, StringReference *stringReference){
   _Bool success;
 
   if(from >= 0.0 && from <= stringLength && to >= 0.0 && to <= stringLength && from <= to){
-    stringReference->string = sSubstring(&stringReference->stringLength, string, stringLength, from, to);
+    stringReference->string = Substring(&stringReference->stringLength, string, stringLength, from, to);
     success = true;
   }else{
     success = false;
@@ -3444,7 +3524,7 @@ _Bool sSubstringWithCheck(wchar_t *string, size_t stringLength, double from, dou
 
   return success;
 }
-wchar_t *sSubstring(size_t *returnArrayLength, wchar_t *string, size_t stringLength, double from, double to){
+wchar_t *Substring(size_t *returnArrayLength, wchar_t *string, size_t stringLength, double from, double to){
   wchar_t *n;
   size_t nLength;
   double i, length;
@@ -3461,18 +3541,18 @@ wchar_t *sSubstring(size_t *returnArrayLength, wchar_t *string, size_t stringLen
   *returnArrayLength = nLength;
   return n;
 }
-wchar_t *sAppendString(size_t *returnArrayLength, wchar_t *s1, size_t s1Length, wchar_t *s2, size_t s2Length){
+wchar_t *AppendString(size_t *returnArrayLength, wchar_t *s1, size_t s1Length, wchar_t *s2, size_t s2Length){
   wchar_t *newString;
   size_t newStringLength;
 
-  newString = sConcatenateString(&newStringLength, s1, s1Length, s2, s2Length);
+  newString = ConcatenateString(&newStringLength, s1, s1Length, s2, s2Length);
 
   free(s1);
 
   *returnArrayLength = newStringLength;
   return newString;
 }
-wchar_t *sConcatenateString(size_t *returnArrayLength, wchar_t *s1, size_t s1Length, wchar_t *s2, size_t s2Length){
+wchar_t *ConcatenateString(size_t *returnArrayLength, wchar_t *s1, size_t s1Length, wchar_t *s2, size_t s2Length){
   wchar_t *newString;
   size_t newStringLength;
   double i;
@@ -3491,18 +3571,18 @@ wchar_t *sConcatenateString(size_t *returnArrayLength, wchar_t *s1, size_t s1Len
   *returnArrayLength = newStringLength;
   return newString;
 }
-wchar_t *sAppendCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t c){
+wchar_t *AppendCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t c){
   wchar_t *newString;
   size_t newStringLength;
 
-  newString = sConcatenateCharacter(&newStringLength, string, stringLength, c);
+  newString = ConcatenateCharacter(&newStringLength, string, stringLength, c);
 
   free(string);
 
   *returnArrayLength = newStringLength;
   return newString;
 }
-wchar_t *sConcatenateCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t c){
+wchar_t *ConcatenateCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t c){
   wchar_t *newString;
   size_t newStringLength;
   double i;
@@ -3518,7 +3598,7 @@ wchar_t *sConcatenateCharacter(size_t *returnArrayLength, wchar_t *string, size_
   *returnArrayLength = newStringLength;
   return newString;
 }
-StringReference **sSplitByCharacter(size_t *returnArrayLength, wchar_t *toSplit, size_t toSplitLength, wchar_t splitBy){
+StringReference **SplitByCharacter(size_t *returnArrayLength, wchar_t *toSplit, size_t toSplitLength, wchar_t splitBy){
   StringReference **split;
   size_t splitLength;
   wchar_t *stringToSplitBy;
@@ -3528,14 +3608,14 @@ StringReference **sSplitByCharacter(size_t *returnArrayLength, wchar_t *toSplit,
   stringToSplitByLength = 1.0;
   stringToSplitBy[0] = splitBy;
 
-  split = sSplitByString(&splitLength, toSplit, toSplitLength, stringToSplitBy, stringToSplitByLength);
+  split = SplitByString(&splitLength, toSplit, toSplitLength, stringToSplitBy, stringToSplitByLength);
 
   free(stringToSplitBy);
 
   *returnArrayLength = splitLength;
   return split;
 }
-_Bool sIndexOfCharacter(wchar_t *string, size_t stringLength, wchar_t character, NumberReference *indexReference){
+_Bool IndexOfCharacter(wchar_t *string, size_t stringLength, wchar_t character, NumberReference *indexReference){
   double i;
   _Bool found;
 
@@ -3549,19 +3629,19 @@ _Bool sIndexOfCharacter(wchar_t *string, size_t stringLength, wchar_t character,
 
   return found;
 }
-_Bool sSubstringEqualsWithCheck(wchar_t *string, size_t stringLength, double from, wchar_t *substring, size_t substringLength, BooleanReference *equalsReference){
+_Bool SubstringEqualsWithCheck(wchar_t *string, size_t stringLength, double from, wchar_t *substring, size_t substringLength, BooleanReference *equalsReference){
   _Bool success;
 
   if(from < stringLength){
     success = true;
-    equalsReference->booleanValue = sSubstringEquals(string, stringLength, from, substring, substringLength);
+    equalsReference->booleanValue = SubstringEquals(string, stringLength, from, substring, substringLength);
   }else{
     success = false;
   }
 
   return success;
 }
-_Bool sSubstringEquals(wchar_t *string, size_t stringLength, double from, wchar_t *substring, size_t substringLength){
+_Bool SubstringEquals(wchar_t *string, size_t stringLength, double from, wchar_t *substring, size_t substringLength){
   double i;
   _Bool equal;
 
@@ -3578,13 +3658,13 @@ _Bool sSubstringEquals(wchar_t *string, size_t stringLength, double from, wchar_
 
   return equal;
 }
-_Bool sIndexOfString(wchar_t *string, size_t stringLength, wchar_t *substring, size_t substringLength, NumberReference *indexReference){
+_Bool IndexOfString(wchar_t *string, size_t stringLength, wchar_t *substring, size_t substringLength, NumberReference *indexReference){
   double i;
   _Bool found;
 
   found = false;
   for(i = 0.0; i < stringLength - substringLength + 1.0 &&  !found ; i = i + 1.0){
-    if(sSubstringEquals(string, stringLength, i, substring, substringLength)){
+    if(SubstringEquals(string, stringLength, i, substring, substringLength)){
       found = true;
       indexReference->numberValue = i;
     }
@@ -3592,7 +3672,7 @@ _Bool sIndexOfString(wchar_t *string, size_t stringLength, wchar_t *substring, s
 
   return found;
 }
-_Bool sContainsCharacter(wchar_t *string, size_t stringLength, wchar_t character){
+_Bool ContainsCharacter(wchar_t *string, size_t stringLength, wchar_t character){
   double i;
   _Bool found;
 
@@ -3605,24 +3685,24 @@ _Bool sContainsCharacter(wchar_t *string, size_t stringLength, wchar_t character
 
   return found;
 }
-_Bool sContainsString(wchar_t *string, size_t stringLength, wchar_t *substring, size_t substringLength){
-  return sIndexOfString(string, stringLength, substring, substringLength, (NumberReference *)malloc(sizeof(NumberReference)));
+_Bool ContainsString(wchar_t *string, size_t stringLength, wchar_t *substring, size_t substringLength){
+  return IndexOfString(string, stringLength, substring, substringLength, (NumberReference *)malloc(sizeof(NumberReference)));
 }
-void sToUpperCase(wchar_t *string, size_t stringLength){
+void ToUpperCase(wchar_t *string, size_t stringLength){
   double i;
 
   for(i = 0.0; i < stringLength; i = i + 1.0){
     string[(int)(i)] = charToUpperCase(string[(int)(i)]);
   }
 }
-void sToLowerCase(wchar_t *string, size_t stringLength){
+void ToLowerCase(wchar_t *string, size_t stringLength){
   double i;
 
   for(i = 0.0; i < stringLength; i = i + 1.0){
     string[(int)(i)] = charToLowerCase(string[(int)(i)]);
   }
 }
-_Bool sEqualsIgnoreCase(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength){
+_Bool EqualsIgnoreCase(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength){
   _Bool equal;
   double i;
 
@@ -3639,7 +3719,7 @@ _Bool sEqualsIgnoreCase(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength){
 
   return equal;
 }
-wchar_t *sReplaceString(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t *toReplace, size_t toReplaceLength, wchar_t *replaceWith, size_t replaceWithLength){
+wchar_t *ReplaceString(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t *toReplace, size_t toReplaceLength, wchar_t *replaceWith, size_t replaceWithLength){
   wchar_t *result;
   size_t resultLength;
   double i, j;
@@ -3652,7 +3732,7 @@ wchar_t *sReplaceString(size_t *returnArrayLength, wchar_t *string, size_t strin
   equalsReference = (BooleanReference *)malloc(sizeof(BooleanReference));
 
   for(i = 0.0; i < stringLength; ){
-    success = sSubstringEqualsWithCheck(string, stringLength, i, toReplace, toReplaceLength, equalsReference);
+    success = SubstringEqualsWithCheck(string, stringLength, i, toReplace, toReplaceLength, equalsReference);
     if(success){
       success = equalsReference->booleanValue;
     }
@@ -3675,7 +3755,7 @@ wchar_t *sReplaceString(size_t *returnArrayLength, wchar_t *string, size_t strin
   *returnArrayLength = resultLength;
   return result;
 }
-wchar_t *sReplaceCharacterToNew(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t toReplace, wchar_t replaceWith){
+wchar_t *ReplaceCharacterToNew(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t toReplace, wchar_t replaceWith){
   wchar_t *result;
   size_t resultLength;
   double i;
@@ -3694,7 +3774,7 @@ wchar_t *sReplaceCharacterToNew(size_t *returnArrayLength, wchar_t *string, size
   *returnArrayLength = resultLength;
   return result;
 }
-void sReplaceCharacter(wchar_t *string, size_t stringLength, wchar_t toReplace, wchar_t replaceWith){
+void ReplaceCharacter(wchar_t *string, size_t stringLength, wchar_t toReplace, wchar_t replaceWith){
   double i;
 
   for(i = 0.0; i < stringLength; i = i + 1.0){
@@ -3703,7 +3783,7 @@ void sReplaceCharacter(wchar_t *string, size_t stringLength, wchar_t toReplace, 
     }
   }
 }
-wchar_t *sTrim(size_t *returnArrayLength, wchar_t *string, size_t stringLength){
+wchar_t *Trim(size_t *returnArrayLength, wchar_t *string, size_t stringLength){
   wchar_t *result;
   size_t resultLength;
   double i, lastWhitespaceLocationStart, lastWhitespaceLocationEnd;
@@ -3732,7 +3812,7 @@ wchar_t *sTrim(size_t *returnArrayLength, wchar_t *string, size_t stringLength){
   }
 
   if(lastWhitespaceLocationStart < lastWhitespaceLocationEnd){
-    result = sSubstring(&resultLength, string, stringLength, lastWhitespaceLocationStart + 1.0, lastWhitespaceLocationEnd);
+    result = Substring(&resultLength, string, stringLength, lastWhitespaceLocationStart + 1.0, lastWhitespaceLocationEnd);
   }else{
     result = (wchar_t*)malloc(sizeof(wchar_t) * (0.0));
     resultLength = 0.0;
@@ -3741,27 +3821,27 @@ wchar_t *sTrim(size_t *returnArrayLength, wchar_t *string, size_t stringLength){
   *returnArrayLength = resultLength;
   return result;
 }
-_Bool sStartsWith(wchar_t *string, size_t stringLength, wchar_t *start, size_t startLength){
+_Bool StartsWith(wchar_t *string, size_t stringLength, wchar_t *start, size_t startLength){
   _Bool startsWithString;
 
   startsWithString = false;
   if(stringLength >= startLength){
-    startsWithString = sSubstringEquals(string, stringLength, 0.0, start, startLength);
+    startsWithString = SubstringEquals(string, stringLength, 0.0, start, startLength);
   }
 
   return startsWithString;
 }
-_Bool sEndsWith(wchar_t *string, size_t stringLength, wchar_t *end, size_t endLength){
+_Bool EndsWith(wchar_t *string, size_t stringLength, wchar_t *end, size_t endLength){
   _Bool endsWithString;
 
   endsWithString = false;
   if(stringLength >= endLength){
-    endsWithString = sSubstringEquals(string, stringLength, stringLength - endLength, end, endLength);
+    endsWithString = SubstringEquals(string, stringLength, stringLength - endLength, end, endLength);
   }
 
   return endsWithString;
 }
-StringReference **sSplitByString(size_t *returnArrayLength, wchar_t *toSplit, size_t toSplitLength, wchar_t *splitBy, size_t splitByLength){
+StringReference **SplitByString(size_t *returnArrayLength, wchar_t *toSplit, size_t toSplitLength, wchar_t *splitBy, size_t splitByLength){
   StringReference **split;
   size_t splitLength;
   wchar_t *next;
@@ -3778,7 +3858,7 @@ StringReference **sSplitByString(size_t *returnArrayLength, wchar_t *toSplit, si
   for(i = 0.0; i < toSplitLength; ){
     c = toSplit[(int)(i)];
 
-    if(sSubstringEquals(toSplit, toSplitLength, i, splitBy, splitByLength)){
+    if(SubstringEquals(toSplit, toSplitLength, i, splitBy, splitByLength)){
       n = (StringReference *)malloc(sizeof(StringReference));
       n->string = next;
       n->stringLength = nextLength;
@@ -3787,7 +3867,7 @@ StringReference **sSplitByString(size_t *returnArrayLength, wchar_t *toSplit, si
       nextLength = 0.0;
       i = i + splitByLength;
     }else{
-      next = sAppendCharacter(&nextLength, next, nextLength, c);
+      next = AppendCharacter(&nextLength, next, nextLength, c);
       i = i + 1.0;
     }
   }
@@ -3800,7 +3880,7 @@ StringReference **sSplitByString(size_t *returnArrayLength, wchar_t *toSplit, si
   *returnArrayLength = splitLength;
   return split;
 }
-_Bool sStringIsBefore(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength){
+_Bool StringIsBefore(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength){
   _Bool before, equal, done;
   double i;
 
@@ -3832,408 +3912,63 @@ _Bool sStringIsBefore(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength){
 
   return before;
 }
-void strWriteStringToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, wchar_t *src, size_t srcLength){
-  double i;
+wchar_t *JoinStringsWithSeparator(size_t *returnArrayLength, StringReference **strings, size_t stringsLength, wchar_t *separator, size_t separatorLength){
+  wchar_t *result, *string;
+  size_t resultLength, stringLength;
+  double length, i;
+  NumberReference *index;
 
-  for(i = 0.0; i < srcLength; i = i + 1.0){
-    stream[(int)(index->numberValue + i)] = src[(int)(i)];
+  index = CreateNumberReference(0.0);
+
+  length = 0.0;
+  for(i = 0.0; i < stringsLength; i = i + 1.0){
+    length = length + strings[(int)(i)]->stringLength;
   }
-  index->numberValue = index->numberValue + srcLength;
-}
-void strWriteCharacterToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, wchar_t src){
-  stream[(int)(index->numberValue)] = src;
-  index->numberValue = index->numberValue + 1.0;
-}
-void strWriteBooleanToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, _Bool src){
-  if(src){
-    strWriteStringToStingStream(stream, streamLength, index, strparam(L"true"));
-  }else{
-    strWriteStringToStingStream(stream, streamLength, index, strparam(L"false"));
-  }
-}
-_Bool strSubstringWithCheck(wchar_t *string, size_t stringLength, double from, double to, StringReference *stringReference){
-  _Bool success;
+  length = length + (stringsLength - 1.0)*separatorLength;
 
-  if(from >= 0.0 && from <= stringLength && to >= 0.0 && to <= stringLength && from <= to){
-    stringReference->string = strSubstring(&stringReference->stringLength, string, stringLength, from, to);
-    success = true;
-  }else{
-    success = false;
-  }
+  result = (wchar_t*)malloc(sizeof(wchar_t) * (length));
+  resultLength = length;
 
-  return success;
-}
-wchar_t *strSubstring(size_t *returnArrayLength, wchar_t *string, size_t stringLength, double from, double to){
-  wchar_t *n;
-  size_t nLength;
-  double i, length;
-
-  length = to - from;
-
-  n = (wchar_t*)malloc(sizeof(wchar_t) * (length));
-  nLength = length;
-
-  for(i = from; i < to; i = i + 1.0){
-    n[(int)(i - from)] = string[(int)(i)];
-  }
-
-  *returnArrayLength = nLength;
-  return n;
-}
-wchar_t *strAppendString(size_t *returnArrayLength, wchar_t *s1, size_t s1Length, wchar_t *s2, size_t s2Length){
-  wchar_t *newString;
-  size_t newStringLength;
-
-  newString = strConcatenateString(&newStringLength, s1, s1Length, s2, s2Length);
-
-  free(s1);
-
-  *returnArrayLength = newStringLength;
-  return newString;
-}
-wchar_t *strConcatenateString(size_t *returnArrayLength, wchar_t *s1, size_t s1Length, wchar_t *s2, size_t s2Length){
-  wchar_t *newString;
-  size_t newStringLength;
-  double i;
-
-  newString = (wchar_t*)malloc(sizeof(wchar_t) * (s1Length + s2Length));
-  newStringLength = s1Length + s2Length;
-
-  for(i = 0.0; i < s1Length; i = i + 1.0){
-    newString[(int)(i)] = s1[(int)(i)];
-  }
-
-  for(i = 0.0; i < s2Length; i = i + 1.0){
-    newString[(int)(s1Length + i)] = s2[(int)(i)];
-  }
-
-  *returnArrayLength = newStringLength;
-  return newString;
-}
-wchar_t *strAppendCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t c){
-  wchar_t *newString;
-  size_t newStringLength;
-
-  newString = strConcatenateCharacter(&newStringLength, string, stringLength, c);
-
-  free(string);
-
-  *returnArrayLength = newStringLength;
-  return newString;
-}
-wchar_t *strConcatenateCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t c){
-  wchar_t *newString;
-  size_t newStringLength;
-  double i;
-  newString = (wchar_t*)malloc(sizeof(wchar_t) * (stringLength + 1.0));
-  newStringLength = stringLength + 1.0;
-
-  for(i = 0.0; i < stringLength; i = i + 1.0){
-    newString[(int)(i)] = string[(int)(i)];
-  }
-
-  newString[(int)(stringLength)] = c;
-
-  *returnArrayLength = newStringLength;
-  return newString;
-}
-StringReference **strSplitByCharacter(size_t *returnArrayLength, wchar_t *toSplit, size_t toSplitLength, wchar_t splitBy){
-  StringReference **split;
-  size_t splitLength;
-  wchar_t *stringToSplitBy;
-  size_t stringToSplitByLength;
-
-  stringToSplitBy = (wchar_t*)malloc(sizeof(wchar_t) * (1.0));
-  stringToSplitByLength = 1.0;
-  stringToSplitBy[0] = splitBy;
-
-  split = strSplitByString(&splitLength, toSplit, toSplitLength, stringToSplitBy, stringToSplitByLength);
-
-  free(stringToSplitBy);
-
-  *returnArrayLength = splitLength;
-  return split;
-}
-_Bool strIndexOfCharacter(wchar_t *string, size_t stringLength, wchar_t character, NumberReference *indexReference){
-  double i;
-  _Bool found;
-
-  found = false;
-  for(i = 0.0; i < stringLength &&  !found ; i = i + 1.0){
-    if(string[(int)(i)] == character){
-      found = true;
-      indexReference->numberValue = i;
+  for(i = 0.0; i < stringsLength; i = i + 1.0){
+    string = strings[(int)(i)]->string;
+    stringLength = strings[(int)(i)]->stringLength;
+    WriteStringToStingStream(result, resultLength, index, string, stringLength);
+    if(i + 1.0 < stringsLength){
+      WriteStringToStingStream(result, resultLength, index, separator, separatorLength);
     }
   }
 
-  return found;
-}
-_Bool strSubstringEqualsWithCheck(wchar_t *string, size_t stringLength, double from, wchar_t *substring, size_t substringLength, BooleanReference *equalsReference){
-  _Bool success;
-
-  if(from < stringLength){
-    success = true;
-    equalsReference->booleanValue = strSubstringEquals(string, stringLength, from, substring, substringLength);
-  }else{
-    success = false;
-  }
-
-  return success;
-}
-_Bool strSubstringEquals(wchar_t *string, size_t stringLength, double from, wchar_t *substring, size_t substringLength){
-  double i;
-  _Bool equal;
-
-  equal = true;
-  for(i = 0.0; i < substringLength && equal; i = i + 1.0){
-    if(string[(int)(from + i)] != substring[(int)(i)]){
-      equal = false;
-    }
-  }
-
-  return equal;
-}
-_Bool strIndexOfString(wchar_t *string, size_t stringLength, wchar_t *substring, size_t substringLength, NumberReference *indexReference){
-  double i;
-  _Bool found;
-
-  found = false;
-  for(i = 0.0; i < stringLength - substringLength + 1.0 &&  !found ; i = i + 1.0){
-    if(strSubstringEquals(string, stringLength, i, substring, substringLength)){
-      found = true;
-      indexReference->numberValue = i;
-    }
-  }
-
-  return found;
-}
-_Bool strContainsCharacter(wchar_t *string, size_t stringLength, wchar_t character){
-  double i;
-  _Bool found;
-
-  found = false;
-  for(i = 0.0; i < stringLength &&  !found ; i = i + 1.0){
-    if(string[(int)(i)] == character){
-      found = true;
-    }
-  }
-
-  return found;
-}
-_Bool strContainsString(wchar_t *string, size_t stringLength, wchar_t *substring, size_t substringLength){
-  return strIndexOfString(string, stringLength, substring, substringLength, (NumberReference *)malloc(sizeof(NumberReference)));
-}
-void strToUpperCase(wchar_t *string, size_t stringLength){
-  double i;
-
-  for(i = 0.0; i < stringLength; i = i + 1.0){
-    string[(int)(i)] = charToUpperCase(string[(int)(i)]);
-  }
-}
-void strToLowerCase(wchar_t *string, size_t stringLength){
-  double i;
-
-  for(i = 0.0; i < stringLength; i = i + 1.0){
-    string[(int)(i)] = charToLowerCase(string[(int)(i)]);
-  }
-}
-_Bool strEqualsIgnoreCase(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength){
-  _Bool equal;
-  double i;
-
-  if(aLength == bLength){
-    equal = true;
-    for(i = 0.0; i < aLength && equal; i = i + 1.0){
-      if(charToLowerCase(a[(int)(i)]) != charToLowerCase(b[(int)(i)])){
-        equal = false;
-      }
-    }
-  }else{
-    equal = false;
-  }
-
-  return equal;
-}
-wchar_t *strReplaceString(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t *toReplace, size_t toReplaceLength, wchar_t *replaceWith, size_t replaceWithLength){
-  wchar_t *result;
-  size_t resultLength;
-  double i;
-  BooleanReference *equalsReference;
-  _Bool success;
-
-  equalsReference = (BooleanReference *)malloc(sizeof(BooleanReference));
-  result = (wchar_t*)malloc(sizeof(wchar_t) * (0.0));
-  resultLength = 0.0;
-
-  for(i = 0.0; i < stringLength; ){
-    success = strSubstringEqualsWithCheck(string, stringLength, i, toReplace, toReplaceLength, equalsReference);
-    if(success){
-      success = equalsReference->booleanValue;
-    }
-
-    if(success && toReplaceLength > 0.0){
-      result = strConcatenateString(&resultLength, result, resultLength, replaceWith, replaceWithLength);
-      i = i + toReplaceLength;
-    }else{
-      result = strConcatenateCharacter(&resultLength, result, resultLength, string[(int)(i)]);
-      i = i + 1.0;
-    }
-  }
+  free(index);
 
   *returnArrayLength = resultLength;
   return result;
 }
-wchar_t *strReplaceCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t toReplace, wchar_t replaceWith){
-  wchar_t *result;
-  size_t resultLength;
-  double i;
+wchar_t *JoinStrings(size_t *returnArrayLength, StringReference **strings, size_t stringsLength){
+  wchar_t *result, *string;
+  size_t resultLength, stringLength;
+  double length, i;
+  NumberReference *index;
 
-  result = (wchar_t*)malloc(sizeof(wchar_t) * (0.0));
-  resultLength = 0.0;
+  index = CreateNumberReference(0.0);
 
-  for(i = 0.0; i < stringLength; i = i + 1.0){
-    if(string[(int)(i)] == toReplace){
-      result = strConcatenateCharacter(&resultLength, result, resultLength, replaceWith);
-    }else{
-      result = strConcatenateCharacter(&resultLength, result, resultLength, string[(int)(i)]);
-    }
+  length = 0.0;
+  for(i = 0.0; i < stringsLength; i = i + 1.0){
+    length = length + strings[(int)(i)]->stringLength;
   }
+
+  result = (wchar_t*)malloc(sizeof(wchar_t) * (length));
+  resultLength = length;
+
+  for(i = 0.0; i < stringsLength; i = i + 1.0){
+    string = strings[(int)(i)]->string;
+    stringLength = strings[(int)(i)]->stringLength;
+    WriteStringToStingStream(result, resultLength, index, string, stringLength);
+  }
+
+  free(index);
 
   *returnArrayLength = resultLength;
   return result;
-}
-wchar_t *strTrim(size_t *returnArrayLength, wchar_t *string, size_t stringLength){
-  wchar_t *result;
-  size_t resultLength;
-  double i, lastWhitespaceLocationStart, lastWhitespaceLocationEnd;
-  _Bool firstNonWhitespaceFound;
-
-  /* Find whitepaces at the start. */
-  lastWhitespaceLocationStart =  -1.0;
-  firstNonWhitespaceFound = false;
-  for(i = 0.0; i < stringLength &&  !firstNonWhitespaceFound ; i = i + 1.0){
-    if(charIsWhiteSpace(string[(int)(i)])){
-      lastWhitespaceLocationStart = i;
-    }else{
-      firstNonWhitespaceFound = true;
-    }
-  }
-
-  /* Find whitepaces at the end. */
-  lastWhitespaceLocationEnd = stringLength;
-  firstNonWhitespaceFound = false;
-  for(i = stringLength - 1.0; i >= 0.0 &&  !firstNonWhitespaceFound ; i = i - 1.0){
-    if(charIsWhiteSpace(string[(int)(i)])){
-      lastWhitespaceLocationEnd = i;
-    }else{
-      firstNonWhitespaceFound = true;
-    }
-  }
-
-  if(lastWhitespaceLocationStart < lastWhitespaceLocationEnd){
-    result = strSubstring(&resultLength, string, stringLength, lastWhitespaceLocationStart + 1.0, lastWhitespaceLocationEnd);
-  }else{
-    result = (wchar_t*)malloc(sizeof(wchar_t) * (0.0));
-    resultLength = 0.0;
-  }
-
-  *returnArrayLength = resultLength;
-  return result;
-}
-_Bool strStartsWith(wchar_t *string, size_t stringLength, wchar_t *start, size_t startLength){
-  _Bool startsWithString;
-
-  startsWithString = false;
-  if(stringLength >= startLength){
-    startsWithString = strSubstringEquals(string, stringLength, 0.0, start, startLength);
-  }
-
-  return startsWithString;
-}
-_Bool strEndsWith(wchar_t *string, size_t stringLength, wchar_t *end, size_t endLength){
-  _Bool endsWithString;
-
-  endsWithString = false;
-  if(stringLength >= endLength){
-    endsWithString = strSubstringEquals(string, stringLength, stringLength - endLength, end, endLength);
-  }
-
-  return endsWithString;
-}
-StringReference **strSplitByString(size_t *returnArrayLength, wchar_t *toSplit, size_t toSplitLength, wchar_t *splitBy, size_t splitByLength){
-  StringReference **split;
-  size_t splitLength;
-  wchar_t *next;
-  size_t nextLength;
-  double i;
-  wchar_t c;
-  StringReference *n;
-
-  split = (StringReference**)malloc(sizeof(StringReference) * 0.0);
-  splitLength = 0.0;
-
-  next = (wchar_t*)malloc(sizeof(wchar_t) * (0.0));
-  nextLength = 0.0;
-  for(i = 0.0; i < toSplitLength; ){
-    c = toSplit[(int)(i)];
-
-    if(strSubstringEquals(toSplit, toSplitLength, i, splitBy, splitByLength)){
-      if(splitLength != 0.0 || i != 0.0){
-        n = (StringReference *)malloc(sizeof(StringReference));
-        n->string = next;
-        n->stringLength = nextLength;
-        split = lAddString(&splitLength, split, splitLength, n);
-        next = (wchar_t*)malloc(sizeof(wchar_t) * (0.0));
-        nextLength = 0.0;
-        i = i + splitByLength;
-      }
-    }else{
-      next = strAppendCharacter(&nextLength, next, nextLength, c);
-      i = i + 1.0;
-    }
-  }
-
-  if(nextLength > 0.0){
-    n = (StringReference *)malloc(sizeof(StringReference));
-    n->string = next;
-    n->stringLength = nextLength;
-    split = lAddString(&splitLength, split, splitLength, n);
-  }
-
-  *returnArrayLength = splitLength;
-  return split;
-}
-_Bool strStringIsBefore(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength){
-  _Bool before, equal, done;
-  double i;
-
-  before = false;
-  equal = true;
-  done = false;
-
-  if(aLength == 0.0 && bLength > 0.0){
-    before = true;
-  }else{
-    for(i = 0.0; i < aLength && i < bLength &&  !done ; i = i + 1.0){
-      if(a[(int)(i)] != b[(int)(i)]){
-        equal = false;
-      }
-      if(charCharacterIsBefore(a[(int)(i)], b[(int)(i)])){
-        before = true;
-      }
-      if(charCharacterIsBefore(b[(int)(i)], a[(int)(i)])){
-        done = true;
-      }
-    }
-
-    if(equal){
-      if(aLength < bLength){
-        before = true;
-      }
-    }
-  }
-
-  return before;
 }
 double *StringToNumberArray(size_t *returnArrayLength, wchar_t *string, size_t stringLength){
   double i;
@@ -4664,7 +4399,14 @@ wchar_t *nCreateStringScientificNotationDecimalFromNumber(size_t *returnArrayLen
     }
 
     if( !done ){
-      for(; decimal >= 10.0 || decimal < 1.0; ){
+      exponent = round(log10(decimal));
+      exponent = fmin(99.0, exponent);
+      exponent = fmax( -99.0, exponent);
+
+      decimal = decimal/pow(10.0, exponent);
+
+      /* Adjust */
+      for(; (decimal >= 10.0 || decimal < 1.0) && fabs(exponent) < 99.0; ){
         decimal = decimal*multiplier;
         exponent = exponent + inc;
       }
@@ -4676,12 +4418,12 @@ wchar_t *nCreateStringScientificNotationDecimalFromNumber(size_t *returnArrayLen
   nCreateStringFromNumberWithCheck(exponent, 10.0, exponentReference);
 
   if( !isPositive ){
-    result = strAppendString(&resultLength, result, resultLength, strparam(L"-"));
+    result = AppendString(&resultLength, result, resultLength, strparam(L"-"));
   }
 
-  result = strAppendString(&resultLength, result, resultLength, mantissaReference->string, mantissaReference->stringLength);
-  result = strAppendString(&resultLength, result, resultLength, strparam(L"e"));
-  result = strAppendString(&resultLength, result, resultLength, exponentReference->string, exponentReference->stringLength);
+  result = AppendString(&resultLength, result, resultLength, mantissaReference->string, mantissaReference->stringLength);
+  result = AppendString(&resultLength, result, resultLength, strparam(L"e"));
+  result = AppendString(&resultLength, result, resultLength, exponentReference->string, exponentReference->stringLength);
 
   *returnArrayLength = resultLength;
   return result;
@@ -4698,8 +4440,7 @@ wchar_t *nCreateStringDecimalFromNumber(size_t *returnArrayLength, double decima
   return stringReference->string;
 }
 _Bool nCreateStringFromNumberWithCheck(double decimal, double base, StringReference *stringReference){
-  wchar_t *string;
-  size_t stringLength;
+  DynamicArrayCharacters *string;
   double maximumDigits;
   double digitPosition;
   _Bool hasPrintedPoint, isPositive;
@@ -4708,6 +4449,7 @@ _Bool nCreateStringFromNumberWithCheck(double decimal, double base, StringRefere
   CharacterReference *characterReference;
   wchar_t c;
 
+  string = CreateDynamicArrayCharacters();
   isPositive = true;
 
   if(decimal < 0.0){
@@ -4716,17 +4458,13 @@ _Bool nCreateStringFromNumberWithCheck(double decimal, double base, StringRefere
   }
 
   if(decimal == 0.0){
-    stringReference->string = L"0";
-    stringReference->stringLength = wcslen(stringReference->string);
+    DynamicArrayAddCharacter(string, '0');
     success = true;
   }else{
     characterReference = (CharacterReference *)malloc(sizeof(CharacterReference));
 
     if(IsInteger(base)){
       success = true;
-
-      string = (wchar_t*)malloc(sizeof(wchar_t) * (0.0));
-      stringLength = 0.0;
 
       maximumDigits = nGetMaximumDigitsForBase(base);
 
@@ -4737,16 +4475,16 @@ _Bool nCreateStringFromNumberWithCheck(double decimal, double base, StringRefere
       hasPrintedPoint = false;
 
       if( !isPositive ){
-        string = strAppendCharacter(&stringLength, string, stringLength, '-');
+        DynamicArrayAddCharacter(string, '-');
       }
 
       /* Print leading zeros. */
       if(digitPosition < 0.0){
-        string = strAppendCharacter(&stringLength, string, stringLength, '0');
-        string = strAppendCharacter(&stringLength, string, stringLength, '.');
+        DynamicArrayAddCharacter(string, '0');
+        DynamicArrayAddCharacter(string, '.');
         hasPrintedPoint = true;
         for(i = 0.0; i <  -digitPosition - 1.0; i = i + 1.0){
-          string = strAppendCharacter(&stringLength, string, stringLength, '0');
+          DynamicArrayAddCharacter(string, '0');
         }
       }
 
@@ -4760,7 +4498,7 @@ _Bool nCreateStringFromNumberWithCheck(double decimal, double base, StringRefere
 
         if( !hasPrintedPoint  && digitPosition - i + 1.0 == 0.0){
           if(decimal != 0.0){
-            string = strAppendCharacter(&stringLength, string, stringLength, '.');
+            DynamicArrayAddCharacter(string, '.');
           }
           hasPrintedPoint = true;
         }
@@ -4770,27 +4508,31 @@ _Bool nCreateStringFromNumberWithCheck(double decimal, double base, StringRefere
           success = nGetSingleDigitCharacterFromNumberWithCheck(d, base, characterReference);
           if(success){
             c = characterReference->characterValue;
-            string = strAppendCharacter(&stringLength, string, stringLength, c);
+            DynamicArrayAddCharacter(string, c);
           }
         }
 
         if(success){
           decimal = decimal - d*pow(base, maximumDigits - i - 1.0);
+          decimal = fmax(decimal, 0.0);
+          decimal = round(decimal);
         }
       }
 
       if(success){
         /* Print trailing zeros. */
         for(i = 0.0; i < digitPosition - maximumDigits + 1.0; i = i + 1.0){
-          string = strAppendCharacter(&stringLength, string, stringLength, '0');
+          DynamicArrayAddCharacter(string, '0');
         }
-
-        stringReference->string = string;
-        stringReference->stringLength = stringLength;
       }
     }else{
       success = false;
     }
+  }
+
+  if(success){
+    stringReference->string = DynamicArrayCharactersToArray(&stringReference->stringLength, string);
+    FreeDynamicArrayCharacters(string);
   }
 
   /* Done */
@@ -4926,10 +4668,11 @@ double nCreateNumberFromParts(double base, _Bool numberIsPositive, double *befor
   return n;
 }
 _Bool nExtractPartsFromNumberString(wchar_t *n, size_t nLength, double base, BooleanReference *numberIsPositive, NumberArrayReference *beforePoint, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages){
-  double i;
-  _Bool success;
+  double i, j, count;
+  _Bool success, done, complete;
 
   i = 0.0;
+  complete = false;
 
   if(i < nLength){
     if(n[(int)(i)] == '-'){
@@ -4940,134 +4683,54 @@ _Bool nExtractPartsFromNumberString(wchar_t *n, size_t nLength, double base, Boo
       i = i + 1.0;
     }
 
-    success = nExtractPartsFromNumberStringFromSign(n, nLength, base, i, beforePoint, afterPoint, exponentIsPositive, exponent, errorMessages);
+    success = true;
   }else{
     success = false;
     errorMessages->string = L"Number cannot have length zero.";
     errorMessages->stringLength = wcslen(errorMessages->string);
   }
 
-  return success;
-}
-_Bool nExtractPartsFromNumberStringFromSign(wchar_t *n, size_t nLength, double base, double i, NumberArrayReference *beforePoint, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages){
-  _Bool success, done;
-  double count, j;
-
-  done = false;
-  count = 0.0;
-  for(; i + count < nLength &&  !done ; ){
-    if(nCharacterIsNumberCharacterInBase(n[(int)(i + count)], base)){
-      count = count + 1.0;
-    }else{
-      done = true;
-    }
-  }
-
-  if(count >= 1.0){
-    beforePoint->numberArray = (double*)malloc(sizeof(double) * (count));
-    beforePoint->numberArrayLength = count;
-
-    for(j = 0.0; j < count; j = j + 1.0){
-      beforePoint->numberArray[(int)(j)] = nGetNumberFromNumberCharacterForBase(n[(int)(i + j)], base);
-    }
-
-    i = i + count;
-
-    if(i < nLength){
-      success = nExtractPartsFromNumberStringFromPointOrExponent(n, nLength, base, i, afterPoint, exponentIsPositive, exponent, errorMessages);
-    }else{
-      afterPoint->numberArray = (double*)malloc(sizeof(double) * (0.0));
-      afterPoint->numberArrayLength = 0.0;
-      exponent->numberArray = (double*)malloc(sizeof(double) * (0.0));
-      exponent->numberArrayLength = 0.0;
-      success = true;
-    }
-  }else{
-    success = false;
-    errorMessages->string = L"Number must have at least one number after the optional sign.";
-    errorMessages->stringLength = wcslen(errorMessages->string);
-  }
-
-  return success;
-}
-_Bool nExtractPartsFromNumberStringFromPointOrExponent(wchar_t *n, size_t nLength, double base, double i, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages){
-  _Bool success, done;
-  double count, j;
-
-  if(n[(int)(i)] == '.'){
-    i = i + 1.0;
-
-    if(i < nLength){
-      done = false;
-      count = 0.0;
-      for(; i + count < nLength &&  !done ; ){
-        if(nCharacterIsNumberCharacterInBase(n[(int)(i + count)], base)){
-          count = count + 1.0;
-        }else{
-          done = true;
-        }
-      }
-
-      if(count >= 1.0){
-        afterPoint->numberArray = (double*)malloc(sizeof(double) * (count));
-        afterPoint->numberArrayLength = count;
-
-        for(j = 0.0; j < count; j = j + 1.0){
-          afterPoint->numberArray[(int)(j)] = nGetNumberFromNumberCharacterForBase(n[(int)(i + j)], base);
-        }
-
-        i = i + count;
-
-        if(i < nLength){
-          success = nExtractPartsFromNumberStringFromExponent(n, nLength, base, i, exponentIsPositive, exponent, errorMessages);
-        }else{
-          exponent->numberArray = (double*)malloc(sizeof(double) * (0.0));
-          exponent->numberArrayLength = 0.0;
-          success = true;
-        }
+  if(success){
+    done = false;
+    count = 0.0;
+    for(; i + count < nLength &&  !done ; ){
+      if(nCharacterIsNumberCharacterInBase(n[(int)(i + count)], base)){
+        count = count + 1.0;
       }else{
-        success = false;
-        errorMessages->string = L"There must be at least one digit after the decimal point.";
-        errorMessages->stringLength = wcslen(errorMessages->string);
+        done = true;
+      }
+    }
+
+    if(count >= 1.0){
+      beforePoint->numberArray = (double*)malloc(sizeof(double) * (count));
+      beforePoint->numberArrayLength = count;
+
+      for(j = 0.0; j < count; j = j + 1.0){
+        beforePoint->numberArray[(int)(j)] = nGetNumberFromNumberCharacterForBase(n[(int)(i + j)], base);
+      }
+
+      i = i + count;
+
+      if(i < nLength){
+        success = true;
+      }else{
+        afterPoint->numberArray = (double*)malloc(sizeof(double) * (0.0));
+        afterPoint->numberArrayLength = 0.0;
+        exponent->numberArray = (double*)malloc(sizeof(double) * (0.0));
+        exponent->numberArrayLength = 0.0;
+        success = true;
+        complete = true;
       }
     }else{
       success = false;
-      errorMessages->string = L"There must be at least one digit after the decimal point.";
+      errorMessages->string = L"Number must have at least one number after the optional sign.";
       errorMessages->stringLength = wcslen(errorMessages->string);
     }
-  }else if(base <= 14.0 && (n[(int)(i)] == 'e' || n[(int)(i)] == 'E')){
-    if(i < nLength){
-      success = nExtractPartsFromNumberStringFromExponent(n, nLength, base, i, exponentIsPositive, exponent, errorMessages);
-      afterPoint->numberArray = (double*)malloc(sizeof(double) * (0.0));
-      afterPoint->numberArrayLength = 0.0;
-    }else{
-      success = false;
-      errorMessages->string = L"There must be at least one digit after the exponent.";
-      errorMessages->stringLength = wcslen(errorMessages->string);
-    }
-  }else{
-    success = false;
-    errorMessages->string = L"Expected decimal point or exponent symbol.";
-    errorMessages->stringLength = wcslen(errorMessages->string);
   }
 
-  return success;
-}
-_Bool nExtractPartsFromNumberStringFromExponent(wchar_t *n, size_t nLength, double base, double i, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages){
-  _Bool success, done;
-  double count, j;
-
-  if(base <= 14.0 && (n[(int)(i)] == 'e' || n[(int)(i)] == 'E')){
-    i = i + 1.0;
-
-    if(i < nLength){
-      if(n[(int)(i)] == '-'){
-        exponentIsPositive->booleanValue = false;
-        i = i + 1.0;
-      }else if(n[(int)(i)] == '+'){
-        exponentIsPositive->booleanValue = true;
-        i = i + 1.0;
-      }
+  if(success &&  !complete ){
+    if(n[(int)(i)] == '.'){
+      i = i + 1.0;
 
       if(i < nLength){
         done = false;
@@ -5081,25 +4744,99 @@ _Bool nExtractPartsFromNumberStringFromExponent(wchar_t *n, size_t nLength, doub
         }
 
         if(count >= 1.0){
-          exponent->numberArray = (double*)malloc(sizeof(double) * (count));
-          exponent->numberArrayLength = count;
+          afterPoint->numberArray = (double*)malloc(sizeof(double) * (count));
+          afterPoint->numberArrayLength = count;
 
           for(j = 0.0; j < count; j = j + 1.0){
-            exponent->numberArray[(int)(j)] = nGetNumberFromNumberCharacterForBase(n[(int)(i + j)], base);
+            afterPoint->numberArray[(int)(j)] = nGetNumberFromNumberCharacterForBase(n[(int)(i + j)], base);
           }
 
           i = i + count;
 
-          if(i == nLength){
+          if(i < nLength){
             success = true;
           }else{
-            success = false;
-            errorMessages->string = L"There cannot be any characters past the exponent of the number.";
-            errorMessages->stringLength = wcslen(errorMessages->string);
+            exponent->numberArray = (double*)malloc(sizeof(double) * (0.0));
+            exponent->numberArrayLength = 0.0;
+            success = true;
+            complete = true;
           }
         }else{
           success = false;
           errorMessages->string = L"There must be at least one digit after the decimal point.";
+          errorMessages->stringLength = wcslen(errorMessages->string);
+        }
+      }else{
+        success = false;
+        errorMessages->string = L"There must be at least one digit after the decimal point.";
+        errorMessages->stringLength = wcslen(errorMessages->string);
+      }
+    }else if(base <= 14.0 && (n[(int)(i)] == 'e' || n[(int)(i)] == 'E')){
+      if(i < nLength){
+        success = true;
+        afterPoint->numberArray = (double*)malloc(sizeof(double) * (0.0));
+        afterPoint->numberArrayLength = 0.0;
+      }else{
+        success = false;
+        errorMessages->string = L"There must be at least one digit after the exponent.";
+        errorMessages->stringLength = wcslen(errorMessages->string);
+      }
+    }else{
+      success = false;
+      errorMessages->string = L"Expected decimal point or exponent symbol.";
+      errorMessages->stringLength = wcslen(errorMessages->string);
+    }
+  }
+
+  if(success &&  !complete ){
+    if(base <= 14.0 && (n[(int)(i)] == 'e' || n[(int)(i)] == 'E')){
+      i = i + 1.0;
+
+      if(i < nLength){
+        if(n[(int)(i)] == '-'){
+          exponentIsPositive->booleanValue = false;
+          i = i + 1.0;
+        }else if(n[(int)(i)] == '+'){
+          exponentIsPositive->booleanValue = true;
+          i = i + 1.0;
+        }
+
+        if(i < nLength){
+          done = false;
+          count = 0.0;
+          for(; i + count < nLength &&  !done ; ){
+            if(nCharacterIsNumberCharacterInBase(n[(int)(i + count)], base)){
+              count = count + 1.0;
+            }else{
+              done = true;
+            }
+          }
+
+          if(count >= 1.0){
+            exponent->numberArray = (double*)malloc(sizeof(double) * (count));
+            exponent->numberArrayLength = count;
+
+            for(j = 0.0; j < count; j = j + 1.0){
+              exponent->numberArray[(int)(j)] = nGetNumberFromNumberCharacterForBase(n[(int)(i + j)], base);
+            }
+
+            i = i + count;
+
+            if(i == nLength){
+              success = true;
+            }else{
+              success = false;
+              errorMessages->string = L"There cannot be any characters past the exponent of the number.";
+              errorMessages->stringLength = wcslen(errorMessages->string);
+            }
+          }else{
+            success = false;
+            errorMessages->string = L"There must be at least one digit after the decimal point.";
+            errorMessages->stringLength = wcslen(errorMessages->string);
+          }
+        }else{
+          success = false;
+          errorMessages->string = L"There must be at least one digit after the exponent symbol.";
           errorMessages->stringLength = wcslen(errorMessages->string);
         }
       }else{
@@ -5109,13 +4846,9 @@ _Bool nExtractPartsFromNumberStringFromExponent(wchar_t *n, size_t nLength, doub
       }
     }else{
       success = false;
-      errorMessages->string = L"There must be at least one digit after the exponent symbol.";
+      errorMessages->string = L"Expected exponent symbol.";
       errorMessages->stringLength = wcslen(errorMessages->string);
     }
-  }else{
-    success = false;
-    errorMessages->string = L"Expected exponent symbol.";
-    errorMessages->stringLength = wcslen(errorMessages->string);
   }
 
   return success;
@@ -5185,7 +4918,7 @@ _Bool nStringToNumberArrayWithCheck(wchar_t *str, size_t strLength, NumberArrayR
   _Bool success;
   NumberReference *numberReference;
 
-  numberStrings = strSplitByString(&numberStringsLength, str, strLength, strparam(L","));
+  numberStrings = SplitByString(&numberStringsLength, str, strLength, strparam(L","));
 
   numbers = (double*)malloc(sizeof(double) * (numberStringsLength));
   numbersLength = numberStringsLength;
@@ -5195,7 +4928,7 @@ _Bool nStringToNumberArrayWithCheck(wchar_t *str, size_t strLength, NumberArrayR
   for(i = 0.0; i < numberStringsLength; i = i + 1.0){
     numberString = numberStrings[(int)(i)]->string;
     numberStringLength = numberStrings[(int)(i)]->stringLength;
-    trimmedNumberString = strTrim(&trimmedNumberStringLength, numberString, numberStringLength);
+    trimmedNumberString = Trim(&trimmedNumberStringLength, numberString, numberStringLength);
     success = nCreateNumberFromDecimalStringWithCheck(trimmedNumberString, trimmedNumberStringLength, numberReference, errorMessage);
     numbers[(int)(i)] = numberReference->numberValue;
 
@@ -5210,749 +4943,6 @@ _Bool nStringToNumberArrayWithCheck(wchar_t *str, size_t strLength, NumberArrayR
   numberArrayReference->numberArrayLength = numbersLength;
 
   return success;
-}
-double *lAddNumber(size_t *returnArrayLength, double *list, size_t listLength, double a){
-  double *newlist;
-  size_t newlistLength;
-  double i;
-
-  newlist = (double*)malloc(sizeof(double) * (listLength + 1.0));
-  newlistLength = listLength + 1.0;
-  for(i = 0.0; i < listLength; i = i + 1.0){
-    newlist[(int)(i)] = list[(int)(i)];
-  }
-  newlist[(int)(listLength)] = a;
-		
-  free(list);
-		
-  *returnArrayLength = newlistLength;
-  return newlist;
-}
-void lAddNumberRef(NumberArrayReference *list, double i){
-  list->numberArray = lAddNumber(&list->numberArrayLength, list->numberArray, list->numberArrayLength, i);
-}
-double *lRemoveNumber(size_t *returnArrayLength, double *list, size_t listLength, double n){
-  double *newlist;
-  size_t newlistLength;
-  double i;
-
-  newlist = (double*)malloc(sizeof(double) * (listLength - 1.0));
-  newlistLength = listLength - 1.0;
-
-  if(n >= 0.0 && n < listLength){
-    for(i = 0.0; i < listLength; i = i + 1.0){
-      if(i < n){
-        newlist[(int)(i)] = list[(int)(i)];
-      }
-      if(i > n){
-        newlist[(int)(i - 1.0)] = list[(int)(i)];
-      }
-    }
-
-    free(list);
-  }else{
-    free(newlist);
-  }
-		
-  *returnArrayLength = newlistLength;
-  return newlist;
-}
-double lGetNumberRef(NumberArrayReference *list, double i){
-  return list->numberArray[(int)(i)];
-}
-void lRemoveNumberRef(NumberArrayReference *list, double i){
-  list->numberArray = lRemoveNumber(&list->numberArrayLength, list->numberArray, list->numberArrayLength, i);
-}
-StringReference **lAddString(size_t *returnArrayLength, StringReference **list, size_t listLength, StringReference *a){
-  StringReference **newlist;
-  size_t newlistLength;
-  double i;
-
-  newlist = (StringReference**)malloc(sizeof(StringReference) * listLength + 1.0);
-  newlistLength = listLength + 1.0;
-
-  for(i = 0.0; i < listLength; i = i + 1.0){
-    newlist[(int)(i)] = list[(int)(i)];
-  }
-  newlist[(int)(listLength)] = a;
-		
-  free(list);
-		
-  *returnArrayLength = newlistLength;
-  return newlist;
-}
-void lAddStringRef(StringArrayReference *list, StringReference *i){
-  list->stringArray = lAddString(&list->stringArrayLength, list->stringArray, list->stringArrayLength, i);
-}
-StringReference **lRemoveString(size_t *returnArrayLength, StringReference **list, size_t listLength, double n){
-  StringReference **newlist;
-  size_t newlistLength;
-  double i;
-
-  newlist = (StringReference**)malloc(sizeof(StringReference) * listLength - 1.0);
-  newlistLength = listLength - 1.0;
-
-  if(n >= 0.0 && n < listLength){
-    for(i = 0.0; i < listLength; i = i + 1.0){
-      if(i < n){
-        newlist[(int)(i)] = list[(int)(i)];
-      }
-      if(i > n){
-        newlist[(int)(i - 1.0)] = list[(int)(i)];
-      }
-    }
-
-    free(list);
-  }else{
-    free(newlist);
-  }
-		
-  *returnArrayLength = newlistLength;
-  return newlist;
-}
-StringReference *lGetStringRef(StringArrayReference *list, double i){
-  return list->stringArray[(int)(i)];
-}
-void lRemoveStringRef(StringArrayReference *list, double i){
-  list->stringArray = lRemoveString(&list->stringArrayLength, list->stringArray, list->stringArrayLength, i);
-}
-_Bool *lAddBoolean(size_t *returnArrayLength, _Bool *list, size_t listLength, _Bool a){
-  _Bool *newlist;
-  size_t newlistLength;
-  double i;
-
-  newlist = (_Bool*)malloc(sizeof(_Bool) * (listLength + 1.0));
-  newlistLength = listLength + 1.0;
-  for(i = 0.0; i < listLength; i = i + 1.0){
-    newlist[(int)(i)] = list[(int)(i)];
-  }
-  newlist[(int)(listLength)] = a;
-		
-  free(list);
-		
-  *returnArrayLength = newlistLength;
-  return newlist;
-}
-void lAddBooleanRef(BooleanArrayReference *list, _Bool i){
-  list->booleanArray = lAddBoolean(&list->booleanArrayLength, list->booleanArray, list->booleanArrayLength, i);
-}
-_Bool *lRemoveBoolean(size_t *returnArrayLength, _Bool *list, size_t listLength, double n){
-  _Bool *newlist;
-  size_t newlistLength;
-  double i;
-
-  newlist = (_Bool*)malloc(sizeof(_Bool) * (listLength - 1.0));
-  newlistLength = listLength - 1.0;
-
-  if(n >= 0.0 && n < listLength){
-    for(i = 0.0; i < listLength; i = i + 1.0){
-      if(i < n){
-        newlist[(int)(i)] = list[(int)(i)];
-      }
-      if(i > n){
-        newlist[(int)(i - 1.0)] = list[(int)(i)];
-      }
-    }
-
-    free(list);
-  }else{
-    free(newlist);
-  }
-		
-  *returnArrayLength = newlistLength;
-  return newlist;
-}
-_Bool lGetBooleanRef(BooleanArrayReference *list, double i){
-  return list->booleanArray[(int)(i)];
-}
-void lRemoveDecimalRef(BooleanArrayReference *list, double i){
-  list->booleanArray = lRemoveBoolean(&list->booleanArrayLength, list->booleanArray, list->booleanArrayLength, i);
-}
-lLinkedListStrings *lCreateLinkedListString(){
-  lLinkedListStrings *ll;
-
-  ll = (lLinkedListStrings *)malloc(sizeof(lLinkedListStrings));
-  ll->first = (lLinkedListNodeStrings *)malloc(sizeof(lLinkedListNodeStrings));
-  ll->last = ll->first;
-  ll->last->end = true;
-
-  return ll;
-}
-void lLinkedListAddString(lLinkedListStrings *ll, wchar_t *value, size_t valueLength){
-  ll->last->end = false;
-  ll->last->value = value;
-  ll->last->valueLength = valueLength;
-  ll->last->next = (lLinkedListNodeStrings *)malloc(sizeof(lLinkedListNodeStrings));
-  ll->last->next->end = true;
-  ll->last = ll->last->next;
-}
-StringReference **lLinkedListStringsToArray(size_t *returnArrayLength, lLinkedListStrings *ll){
-  StringReference **array;
-  size_t arrayLength;
-  double length, i;
-  lLinkedListNodeStrings *node;
-
-  node = ll->first;
-
-  length = lLinkedListStringsLength(ll);
-
-  array = (StringReference**)malloc(sizeof(StringReference) * length);
-  arrayLength = length;
-
-  for(i = 0.0; i < length; i = i + 1.0){
-    array[(int)(i)] = (StringReference *)malloc(sizeof(StringReference));
-    array[(int)(i)]->string = node->value;
-    array[(int)(i)]->stringLength = node->valueLength;
-    node = node->next;
-  }
-
-  *returnArrayLength = arrayLength;
-  return array;
-}
-double lLinkedListStringsLength(lLinkedListStrings *ll){
-  double l;
-  lLinkedListNodeStrings *node;
-
-  l = 0.0;
-  node = ll->first;
-  for(;  !node->end ; ){
-    node = node->next;
-    l = l + 1.0;
-  }
-
-  return l;
-}
-void lFreeLinkedListString(lLinkedListStrings *ll){
-  lLinkedListNodeStrings *node, *prev;
-
-  node = ll->first;
-
-  for(;  !node->end ; ){
-    prev = node;
-    node = node->next;
-    free(prev);
-  }
-
-  free(node);
-}
-lLinkedListNumbers *lCreateLinkedListNumbers(){
-  lLinkedListNumbers *ll;
-
-  ll = (lLinkedListNumbers *)malloc(sizeof(lLinkedListNumbers));
-  ll->first = (lLinkedListNodeNumbers *)malloc(sizeof(lLinkedListNodeNumbers));
-  ll->last = ll->first;
-  ll->last->end = true;
-
-  return ll;
-}
-lLinkedListNumbers **lCreateLinkedListNumbersArray(size_t *returnArrayLength, double length){
-  lLinkedListNumbers **lls;
-  size_t llsLength;
-  double i;
-
-  lls = (lLinkedListNumbers**)malloc(sizeof(lLinkedListNumbers) * length);
-  llsLength = length;
-  for(i = 0.0; i < llsLength; i = i + 1.0){
-    lls[(int)(i)] = lCreateLinkedListNumbers();
-  }
-
-  *returnArrayLength = llsLength;
-  return lls;
-}
-void lLinkedListAddNumber(lLinkedListNumbers *ll, double value){
-  ll->last->end = false;
-  ll->last->value = value;
-  ll->last->next = (lLinkedListNodeNumbers *)malloc(sizeof(lLinkedListNodeNumbers));
-  ll->last->next->end = true;
-  ll->last = ll->last->next;
-}
-double lLinkedListNumbersLength(lLinkedListNumbers *ll){
-  double l;
-  lLinkedListNodeNumbers *node;
-
-  l = 0.0;
-  node = ll->first;
-  for(;  !node->end ; ){
-    node = node->next;
-    l = l + 1.0;
-  }
-
-  return l;
-}
-double lLinkedListNumbersIndex(lLinkedListNumbers *ll, double index){
-  double i;
-  lLinkedListNodeNumbers *node;
-
-  node = ll->first;
-  for(i = 0.0; i < index; i = i + 1.0){
-    node = node->next;
-  }
-
-  return node->value;
-}
-void lLinkedListInsertNumber(lLinkedListNumbers *ll, double index, double value){
-  double i;
-  lLinkedListNodeNumbers *node, *tmp;
-
-  if(index == 0.0){
-    tmp = ll->first;
-    ll->first = (lLinkedListNodeNumbers *)malloc(sizeof(lLinkedListNodeNumbers));
-    ll->first->next = tmp;
-    ll->first->value = value;
-    ll->first->end = false;
-  }else{
-    node = ll->first;
-    for(i = 0.0; i < index - 1.0; i = i + 1.0){
-      node = node->next;
-    }
-
-    tmp = node->next;
-    node->next = (lLinkedListNodeNumbers *)malloc(sizeof(lLinkedListNodeNumbers));
-    node->next->next = tmp;
-    node->next->value = value;
-    node->next->end = false;
-  }
-}
-void lLinkedListSet(lLinkedListNumbers *ll, double index, double value){
-  double i;
-  lLinkedListNodeNumbers *node;
-
-  node = ll->first;
-  for(i = 0.0; i < index; i = i + 1.0){
-    node = node->next;
-  }
-
-  node->next->value = value;
-}
-void lLinkedListRemoveNumber(lLinkedListNumbers *ll, double index){
-  double i;
-  lLinkedListNodeNumbers *node, *prev;
-
-  node = ll->first;
-  prev = ll->first;
-
-  for(i = 0.0; i < index; i = i + 1.0){
-    prev = node;
-    node = node->next;
-  }
-
-  if(index == 0.0){
-    ll->first = prev->next;
-  }
-  if( !prev->next->end ){
-    prev->next = prev->next->next;
-  }
-}
-void lFreeLinkedListNumbers(lLinkedListNumbers *ll){
-  lLinkedListNodeNumbers *node, *prev;
-
-  node = ll->first;
-
-  for(;  !node->end ; ){
-    prev = node;
-    node = node->next;
-    free(prev);
-  }
-
-  free(node);
-}
-void lFreeLinkedListNumbersArray(lLinkedListNumbers **lls, size_t llsLength){
-  double i;
-
-  for(i = 0.0; i < llsLength; i = i + 1.0){
-    lFreeLinkedListNumbers(lls[(int)(i)]);
-  }
-  free(lls);
-}
-double *lLinkedListNumbersToArray(size_t *returnArrayLength, lLinkedListNumbers *ll){
-  double *array;
-  size_t arrayLength;
-  double length, i;
-  lLinkedListNodeNumbers *node;
-
-  node = ll->first;
-
-  length = lLinkedListNumbersLength(ll);
-
-  array = (double*)malloc(sizeof(double) * (length));
-  arrayLength = length;
-
-  for(i = 0.0; i < length; i = i + 1.0){
-    array[(int)(i)] = node->value;
-    node = node->next;
-  }
-
-  *returnArrayLength = arrayLength;
-  return array;
-}
-lLinkedListNumbers *lArrayToLinkedListNumbers(double *array, size_t arrayLength){
-  lLinkedListNumbers *ll;
-  double i;
-
-  ll = lCreateLinkedListNumbers();
-
-  for(i = 0.0; i < arrayLength; i = i + 1.0){
-    lLinkedListAddNumber(ll, array[(int)(i)]);
-  }
-
-  return ll;
-}
-_Bool lLinkedListNumbersEqual(lLinkedListNumbers *a, lLinkedListNumbers *b){
-  _Bool equal, done;
-  lLinkedListNodeNumbers *an, *bn;
-
-  an = a->first;
-  bn = b->first;
-
-  equal = true;
-  done = false;
-  for(; equal &&  !done ; ){
-    if(an->end == bn->end){
-      if(an->end){
-        done = true;
-      }else if(an->value == bn->value){
-        an = an->next;
-        bn = bn->next;
-      }else{
-        equal = false;
-      }
-    }else{
-      equal = false;
-    }
-  }
-
-  return equal;
-}
-lLinkedListCharacters *lCreateLinkedListCharacter(){
-  lLinkedListCharacters *ll;
-
-  ll = (lLinkedListCharacters *)malloc(sizeof(lLinkedListCharacters));
-  ll->first = (lLinkedListNodeCharacters *)malloc(sizeof(lLinkedListNodeCharacters));
-  ll->last = ll->first;
-  ll->last->end = true;
-
-  return ll;
-}
-void lLinkedListAddCharacter(lLinkedListCharacters *ll, wchar_t value){
-  ll->last->end = false;
-  ll->last->value = value;
-  ll->last->next = (lLinkedListNodeCharacters *)malloc(sizeof(lLinkedListNodeCharacters));
-  ll->last->next->end = true;
-  ll->last = ll->last->next;
-}
-wchar_t *lLinkedListCharactersToArray(size_t *returnArrayLength, lLinkedListCharacters *ll){
-  wchar_t *array;
-  size_t arrayLength;
-  double length, i;
-  lLinkedListNodeCharacters *node;
-
-  node = ll->first;
-
-  length = lLinkedListCharactersLength(ll);
-
-  array = (wchar_t*)malloc(sizeof(wchar_t) * (length));
-  arrayLength = length;
-
-  for(i = 0.0; i < length; i = i + 1.0){
-    array[(int)(i)] = node->value;
-    node = node->next;
-  }
-
-  *returnArrayLength = arrayLength;
-  return array;
-}
-double lLinkedListCharactersLength(lLinkedListCharacters *ll){
-  double l;
-  lLinkedListNodeCharacters *node;
-
-  l = 0.0;
-  node = ll->first;
-  for(;  !node->end ; ){
-    node = node->next;
-    l = l + 1.0;
-  }
-
-  return l;
-}
-void lFreeLinkedListCharacter(lLinkedListCharacters *ll){
-  lLinkedListNodeCharacters *node, *prev;
-
-  node = ll->first;
-
-  for(;  !node->end ; ){
-    prev = node;
-    node = node->next;
-    free(prev);
-  }
-
-  free(node);
-}
-lDynamicArrayNumbers *lCreateDynamicArrayNumbers(){
-  lDynamicArrayNumbers *da;
-
-  da = (lDynamicArrayNumbers *)malloc(sizeof(lDynamicArrayNumbers));
-  da->array = (double*)malloc(sizeof(double) * (10.0));
-  da->arrayLength = 10.0;
-  da->length = 0.0;
-
-  return da;
-}
-lDynamicArrayNumbers *lCreateDynamicArrayNumbersWithInitialCapacity(double capacity){
-  lDynamicArrayNumbers *da;
-
-  da = (lDynamicArrayNumbers *)malloc(sizeof(lDynamicArrayNumbers));
-  da->array = (double*)malloc(sizeof(double) * (capacity));
-  da->arrayLength = capacity;
-  da->length = 0.0;
-
-  return da;
-}
-void lDynamicArrayAddNumber(lDynamicArrayNumbers *da, double value){
-  if(da->length == da->arrayLength){
-    lDynamicArrayNumbersIncreaseSize(da);
-  }
-
-  da->array[(int)(da->length)] = value;
-  da->length = da->length + 1.0;
-}
-void lDynamicArrayNumbersIncreaseSize(lDynamicArrayNumbers *da){
-  double newLength, i;
-  double *newArray;
-  size_t newArrayLength;
-
-  newLength = round(da->arrayLength*3.0/2.0);
-  newArray = (double*)malloc(sizeof(double) * (newLength));
-  newArrayLength = newLength;
-
-  for(i = 0.0; i < da->arrayLength; i = i + 1.0){
-    newArray[(int)(i)] = da->array[(int)(i)];
-  }
-
-  free(da->array);
-
-  da->array = newArray;
-  da->arrayLength = newArrayLength;
-}
-_Bool lDynamicArrayNumbersDecreaseSizeNecessary(lDynamicArrayNumbers *da){
-  _Bool needsDecrease;
-
-  needsDecrease = false;
-
-  if(da->length > 10.0){
-    needsDecrease = da->length <= round(da->arrayLength*2.0/3.0);
-  }
-
-  return needsDecrease;
-}
-void lDynamicArrayNumbersDecreaseSize(lDynamicArrayNumbers *da){
-  double newLength, i;
-  double *newArray;
-  size_t newArrayLength;
-
-  newLength = round(da->arrayLength*2.0/3.0);
-  newArray = (double*)malloc(sizeof(double) * (newLength));
-  newArrayLength = newLength;
-
-  for(i = 0.0; i < da->arrayLength; i = i + 1.0){
-    newArray[(int)(i)] = da->array[(int)(i)];
-  }
-
-  free(da->array);
-
-  da->array = newArray;
-  da->arrayLength = newArrayLength;
-}
-double lDynamicArrayNumbersIndex(lDynamicArrayNumbers *da, double index){
-  return da->array[(int)(index)];
-}
-double lDynamicArrayNumbersLength(lDynamicArrayNumbers *da){
-  return da->length;
-}
-void lDynamicArrayInsertNumber(lDynamicArrayNumbers *da, double index, double value){
-  double i;
-
-  if(da->length == da->arrayLength){
-    lDynamicArrayNumbersIncreaseSize(da);
-  }
-
-  for(i = da->length; i > index; i = i - 1.0){
-    da->array[(int)(i)] = da->array[(int)(i - 1.0)];
-  }
-
-  da->array[(int)(index)] = value;
-
-  da->length = da->length + 1.0;
-}
-void lDynamicArraySet(lDynamicArrayNumbers *da, double index, double value){
-  da->array[(int)(index)] = value;
-}
-void lDynamicArrayRemoveNumber(lDynamicArrayNumbers *da, double index){
-  double i;
-
-  for(i = index; i < da->length - 1.0; i = i + 1.0){
-    da->array[(int)(i)] = da->array[(int)(i + 1.0)];
-  }
-
-  da->length = da->length - 1.0;
-
-  if(lDynamicArrayNumbersDecreaseSizeNecessary(da)){
-    lDynamicArrayNumbersDecreaseSize(da);
-  }
-}
-void lFreeDynamicArrayNumbers(lDynamicArrayNumbers *da){
-  free(da->array);
-  free(da);
-}
-double *lDynamicArrayNumbersToArray(size_t *returnArrayLength, lDynamicArrayNumbers *da){
-  double *array;
-  size_t arrayLength;
-  double i;
-
-  array = (double*)malloc(sizeof(double) * (da->length));
-  arrayLength = da->length;
-
-  for(i = 0.0; i < da->length; i = i + 1.0){
-    array[(int)(i)] = da->array[(int)(i)];
-  }
-
-  *returnArrayLength = arrayLength;
-  return array;
-}
-lDynamicArrayNumbers *lArrayToDynamicArrayNumbersWithOptimalSize(double *array, size_t arrayLength){
-  lDynamicArrayNumbers *da;
-  double i;
-  double c, n, newCapacity;
-
-  /*
-         c = 10*(3/2)^n
-         log(c) = log(10*(3/2)^n)
-         log(c) = log(10) + log((3/2)^n)
-         log(c) = 1 + log((3/2)^n)
-         log(c) - 1 = log((3/2)^n)
-         log(c) - 1 = n*log(3/2)
-         n = (log(c) - 1)/log(3/2)
-         */
-  c = arrayLength;
-  n = (log(c) - 1.0)/log(3.0/2.0);
-  newCapacity = floor(n) + 1.0;
-
-  da = lCreateDynamicArrayNumbersWithInitialCapacity(newCapacity);
-
-  for(i = 0.0; i < arrayLength; i = i + 1.0){
-    da->array[(int)(i)] = array[(int)(i)];
-  }
-
-  return da;
-}
-lDynamicArrayNumbers *lArrayToDynamicArrayNumbers(double *array, size_t arrayLength){
-  lDynamicArrayNumbers *da;
-
-  da = (lDynamicArrayNumbers *)malloc(sizeof(lDynamicArrayNumbers));
-  da->array = CopyNumberArray(&da->arrayLength, array, arrayLength);
-  da->length = arrayLength;
-
-  return da;
-}
-_Bool lDynamicArrayNumbersEqual(lDynamicArrayNumbers *a, lDynamicArrayNumbers *b){
-  _Bool equal;
-  double i;
-
-  equal = true;
-  if(a->length == b->length){
-    for(i = 0.0; i < a->length && equal; i = i + 1.0){
-      if(a->array[(int)(i)] != b->array[(int)(i)]){
-        equal = false;
-      }
-    }
-  }else{
-    equal = false;
-  }
-
-  return equal;
-}
-lLinkedListNumbers *lDynamicArrayNumbersToLinkedList(lDynamicArrayNumbers *da){
-  lLinkedListNumbers *ll;
-  double i;
-
-  ll = lCreateLinkedListNumbers();
-
-  for(i = 0.0; i < da->length; i = i + 1.0){
-    lLinkedListAddNumber(ll, da->array[(int)(i)]);
-  }
-
-  return ll;
-}
-lDynamicArrayNumbers *lLinkedListToDynamicArrayNumbers(lLinkedListNumbers *ll){
-  lDynamicArrayNumbers *da;
-  double i;
-  lLinkedListNodeNumbers *node;
-
-  node = ll->first;
-
-  da = (lDynamicArrayNumbers *)malloc(sizeof(lDynamicArrayNumbers));
-  da->length = lLinkedListNumbersLength(ll);
-
-  da->array = (double*)malloc(sizeof(double) * (da->length));
-  da->arrayLength = da->length;
-
-  for(i = 0.0; i < da->length; i = i + 1.0){
-    da->array[(int)(i)] = node->value;
-    node = node->next;
-  }
-
-  return da;
-}
-wchar_t *lAddCharacter(size_t *returnArrayLength, wchar_t *list, size_t listLength, wchar_t a){
-  wchar_t *newlist;
-  size_t newlistLength;
-  double i;
-
-  newlist = (wchar_t*)malloc(sizeof(wchar_t) * (listLength + 1.0));
-  newlistLength = listLength + 1.0;
-  for(i = 0.0; i < listLength; i = i + 1.0){
-    newlist[(int)(i)] = list[(int)(i)];
-  }
-  newlist[(int)(listLength)] = a;
-		
-  free(list);
-		
-  *returnArrayLength = newlistLength;
-  return newlist;
-}
-void lAddCharacterRef(StringReference *list, wchar_t i){
-  list->string = lAddCharacter(&list->stringLength, list->string, list->stringLength, i);
-}
-wchar_t *lRemoveCharacter(size_t *returnArrayLength, wchar_t *list, size_t listLength, double n){
-  wchar_t *newlist;
-  size_t newlistLength;
-  double i;
-
-  newlist = (wchar_t*)malloc(sizeof(wchar_t) * (listLength - 1.0));
-  newlistLength = listLength - 1.0;
-
-  if(n >= 0.0 && n < listLength){
-    for(i = 0.0; i < listLength; i = i + 1.0){
-      if(i < n){
-        newlist[(int)(i)] = list[(int)(i)];
-      }
-      if(i > n){
-        newlist[(int)(i - 1.0)] = list[(int)(i)];
-      }
-    }
-
-    free(list);
-  }else{
-    free(newlist);
-  }
-
-  *returnArrayLength = newlistLength;
-  return newlist;
-}
-wchar_t lGetCharacterRef(StringReference *list, double i){
-  return list->string[(int)(i)];
-}
-void lRemoveCharacterRef(StringReference *list, double i){
-  list->string = lRemoveCharacter(&list->stringLength, list->string, list->stringLength, i);
 }
 double Negate(double x){
   return  -x;
@@ -6474,59 +5464,35 @@ wchar_t charToUpperCase(wchar_t character){
 _Bool charIsUpperCase(wchar_t character){
   _Bool isUpper;
 
-  isUpper = false;
+  isUpper = true;
   if(character == 'A'){
-    isUpper = true;
   }else if(character == 'B'){
-    isUpper = true;
   }else if(character == 'C'){
-    isUpper = true;
   }else if(character == 'D'){
-    isUpper = true;
   }else if(character == 'E'){
-    isUpper = true;
   }else if(character == 'F'){
-    isUpper = true;
   }else if(character == 'G'){
-    isUpper = true;
   }else if(character == 'H'){
-    isUpper = true;
   }else if(character == 'I'){
-    isUpper = true;
   }else if(character == 'J'){
-    isUpper = true;
   }else if(character == 'K'){
-    isUpper = true;
   }else if(character == 'L'){
-    isUpper = true;
   }else if(character == 'M'){
-    isUpper = true;
   }else if(character == 'N'){
-    isUpper = true;
   }else if(character == 'O'){
-    isUpper = true;
   }else if(character == 'P'){
-    isUpper = true;
   }else if(character == 'Q'){
-    isUpper = true;
   }else if(character == 'R'){
-    isUpper = true;
   }else if(character == 'S'){
-    isUpper = true;
   }else if(character == 'T'){
-    isUpper = true;
   }else if(character == 'U'){
-    isUpper = true;
   }else if(character == 'V'){
-    isUpper = true;
   }else if(character == 'W'){
-    isUpper = true;
   }else if(character == 'X'){
-    isUpper = true;
   }else if(character == 'Y'){
-    isUpper = true;
   }else if(character == 'Z'){
-    isUpper = true;
+  }else{
+    isUpper = false;
   }
 
   return isUpper;
@@ -6534,59 +5500,35 @@ _Bool charIsUpperCase(wchar_t character){
 _Bool charIsLowerCase(wchar_t character){
   _Bool isLower;
 
-  isLower = false;
+  isLower = true;
   if(character == 'a'){
-    isLower = true;
   }else if(character == 'b'){
-    isLower = true;
   }else if(character == 'c'){
-    isLower = true;
   }else if(character == 'd'){
-    isLower = true;
   }else if(character == 'e'){
-    isLower = true;
   }else if(character == 'f'){
-    isLower = true;
   }else if(character == 'g'){
-    isLower = true;
   }else if(character == 'h'){
-    isLower = true;
   }else if(character == 'i'){
-    isLower = true;
   }else if(character == 'j'){
-    isLower = true;
   }else if(character == 'k'){
-    isLower = true;
   }else if(character == 'l'){
-    isLower = true;
   }else if(character == 'm'){
-    isLower = true;
   }else if(character == 'n'){
-    isLower = true;
   }else if(character == 'o'){
-    isLower = true;
   }else if(character == 'p'){
-    isLower = true;
   }else if(character == 'q'){
-    isLower = true;
   }else if(character == 'r'){
-    isLower = true;
   }else if(character == 's'){
-    isLower = true;
   }else if(character == 't'){
-    isLower = true;
   }else if(character == 'u'){
-    isLower = true;
   }else if(character == 'v'){
-    isLower = true;
   }else if(character == 'w'){
-    isLower = true;
   }else if(character == 'x'){
-    isLower = true;
   }else if(character == 'y'){
-    isLower = true;
   }else if(character == 'z'){
-    isLower = true;
+  }else{
+    isLower = false;
   }
 
   return isLower;
@@ -6597,27 +5539,19 @@ _Bool charIsLetter(wchar_t character){
 _Bool charIsNumber(wchar_t character){
   _Bool isNumberx;
 
-  isNumberx = false;
+  isNumberx = true;
   if(character == '0'){
-    isNumberx = true;
   }else if(character == '1'){
-    isNumberx = true;
   }else if(character == '2'){
-    isNumberx = true;
   }else if(character == '3'){
-    isNumberx = true;
   }else if(character == '4'){
-    isNumberx = true;
   }else if(character == '5'){
-    isNumberx = true;
   }else if(character == '6'){
-    isNumberx = true;
   }else if(character == '7'){
-    isNumberx = true;
   }else if(character == '8'){
-    isNumberx = true;
   }else if(character == '9'){
-    isNumberx = true;
+  }else{
+    isNumberx = false;
   }
 
   return isNumberx;
@@ -6625,15 +5559,13 @@ _Bool charIsNumber(wchar_t character){
 _Bool charIsWhiteSpace(wchar_t character){
   _Bool isWhiteSpacex;
 
-  isWhiteSpacex = false;
+  isWhiteSpacex = true;
   if(character == ' '){
-    isWhiteSpacex = true;
   }else if(character == '\t'){
-    isWhiteSpacex = true;
   }else if(character == '\n'){
-    isWhiteSpacex = true;
   }else if(character == '\r'){
-    isWhiteSpacex = true;
+  }else{
+    isWhiteSpacex = false;
   }
 
   return isWhiteSpacex;
@@ -6641,71 +5573,41 @@ _Bool charIsWhiteSpace(wchar_t character){
 _Bool charIsSymbol(wchar_t character){
   _Bool isSymbolx;
 
-  isSymbolx = false;
+  isSymbolx = true;
   if(character == '!'){
-    isSymbolx = true;
   }else if(character == '\"'){
-    isSymbolx = true;
   }else if(character == '#'){
-    isSymbolx = true;
   }else if(character == '$'){
-    isSymbolx = true;
   }else if(character == '%'){
-    isSymbolx = true;
   }else if(character == '&'){
-    isSymbolx = true;
   }else if(character == '\''){
-    isSymbolx = true;
   }else if(character == '('){
-    isSymbolx = true;
   }else if(character == ')'){
-    isSymbolx = true;
   }else if(character == '*'){
-    isSymbolx = true;
   }else if(character == '+'){
-    isSymbolx = true;
   }else if(character == ','){
-    isSymbolx = true;
   }else if(character == '-'){
-    isSymbolx = true;
   }else if(character == '.'){
-    isSymbolx = true;
   }else if(character == '/'){
-    isSymbolx = true;
   }else if(character == ':'){
-    isSymbolx = true;
   }else if(character == ';'){
-    isSymbolx = true;
   }else if(character == '<'){
-    isSymbolx = true;
   }else if(character == '='){
-    isSymbolx = true;
   }else if(character == '>'){
-    isSymbolx = true;
   }else if(character == '?'){
-    isSymbolx = true;
   }else if(character == '@'){
-    isSymbolx = true;
   }else if(character == '['){
-    isSymbolx = true;
   }else if(character == '\\'){
-    isSymbolx = true;
   }else if(character == ']'){
-    isSymbolx = true;
   }else if(character == '^'){
-    isSymbolx = true;
   }else if(character == '_'){
-    isSymbolx = true;
   }else if(character == '`'){
-    isSymbolx = true;
   }else if(character == '{'){
-    isSymbolx = true;
   }else if(character == '|'){
-    isSymbolx = true;
   }else if(character == '}'){
-    isSymbolx = true;
   }else if(character == '~'){
-    isSymbolx = true;
+  }else{
+    isSymbolx = false;
   }
 
   return isSymbolx;
@@ -6717,5 +5619,57 @@ _Bool charCharacterIsBefore(wchar_t a, wchar_t b){
   bd = b;
 
   return ad < bd;
+}
+wchar_t charDecimalDigitToCharacter(double digit){
+  wchar_t c;
+  if(digit == 1.0){
+    c = '1';
+  }else if(digit == 2.0){
+    c = '2';
+  }else if(digit == 3.0){
+    c = '3';
+  }else if(digit == 4.0){
+    c = '4';
+  }else if(digit == 5.0){
+    c = '5';
+  }else if(digit == 6.0){
+    c = '6';
+  }else if(digit == 7.0){
+    c = '7';
+  }else if(digit == 8.0){
+    c = '8';
+  }else if(digit == 9.0){
+    c = '9';
+  }else{
+    c = '0';
+  }
+  return c;
+}
+double charCharacterToDecimalDigit(wchar_t c){
+  double digit;
+
+  if(c == '1'){
+    digit = 1.0;
+  }else if(c == '2'){
+    digit = 2.0;
+  }else if(c == '3'){
+    digit = 3.0;
+  }else if(c == '4'){
+    digit = 4.0;
+  }else if(c == '5'){
+    digit = 5.0;
+  }else if(c == '6'){
+    digit = 6.0;
+  }else if(c == '7'){
+    digit = 7.0;
+  }else if(c == '8'){
+    digit = 8.0;
+  }else if(c == '9'){
+    digit = 9.0;
+  }else{
+    digit = 0.0;
+  }
+
+  return digit;
 }
 

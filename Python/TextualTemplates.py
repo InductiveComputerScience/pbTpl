@@ -168,7 +168,22 @@ def GenerateTokensFromTemplate(template, tokens, errorMessage):
 
   return success
 
-def GenerateDocument(template, data, document, errorMessage):
+def GenerateDocument(template, json, document, errorMessage):
+
+  data = ElementReference()
+  errorMessages = StringArrayReference()
+
+  success = ReadJSON(json, data, errorMessages)
+
+  if success:
+    success = GenerateDocumentBasedOnElement(template, data.element, document, errorMessage)
+  else:
+    errorMessage.string = JoinStringsWithSeparator(errorMessages.stringArray, ", ")
+    FreeStringArrayReference(errorMessages)
+
+  return success
+
+def GenerateDocumentBasedOnElement(template, data, document, errorMessage):
 
   tokens = CreateLinkedListString()
 
@@ -234,7 +249,7 @@ def GenerateDocumentFromNode(n, data, ll, errorMessage):
       else:
         success = False
         errorMessage.string = "Key for printing not found in JSON object: "
-        errorMessage.string = sConcatenateString(errorMessage.string, n.p1)
+        errorMessage.string = ConcatenateString(errorMessage.string, n.p1)
     else:
       success = False
       errorMessage.string = "Data structure for print command is not a JSON object."
@@ -281,7 +296,7 @@ def GenerateDocumentFromIf(n, data, ll, errorMessage):
     else:
       success = False
       errorMessage.string = "Key for if not found in JSON object: "
-      errorMessage.string = sConcatenateString(errorMessage.string, n.p1)
+      errorMessage.string = ConcatenateString(errorMessage.string, n.p1)
   else:
     success = False
     errorMessage.string = "Data structure for if command is not a JSON object."
@@ -318,7 +333,7 @@ def GenerateDocumentFromForeach(n, data, ll, errorMessage):
     else:
       success = False
       errorMessage.string = "Key for foreach not found in JSON object: "
-      errorMessage.string = sConcatenateString(errorMessage.string, n.p2)
+      errorMessage.string = ConcatenateString(errorMessage.string, n.p2)
   else:
     success = False
     errorMessage.string = "Data structure for foreach command is not a JSON object."
@@ -497,8 +512,8 @@ def ParseNodeString(token, node, errorMessage):
   elif token[int(0.0)] != '{':
     isText = True
   else:
-    command = strSubstring(token, 1.0, len(token) - 1.0)
-    parts = sSplitByCharacter(command, ' ')
+    command = Substring(token, 1.0, len(token) - 1.0)
+    parts = SplitByCharacter(command, ' ')
 
     if len(command) > 0.0:
       if StringsEqual(parts[int(0.0)].string, "use"):
@@ -553,12 +568,12 @@ def ParseNodeString(token, node, errorMessage):
 
   if isText:
     node.type = "text"
-    node.p1 = sReplaceString(token, "\\{print ", "{print ")
-    node.p1 = sReplaceString(node.p1, "\\{use ", "{use ")
-    node.p1 = sReplaceString(node.p1, "\\{if ", "{if ")
-    node.p1 = sReplaceString(node.p1, "\\{end}", "{end}")
-    node.p1 = sReplaceString(node.p1, "\\{foreach ", "{foreach ")
-    node.p1 = sReplaceString(node.p1, "\\{else}", "{else}")
+    node.p1 = ReplaceString(token, "\\{print ", "{print ")
+    node.p1 = ReplaceString(node.p1, "\\{use ", "{use ")
+    node.p1 = ReplaceString(node.p1, "\\{if ", "{if ")
+    node.p1 = ReplaceString(node.p1, "\\{end}", "{end}")
+    node.p1 = ReplaceString(node.p1, "\\{foreach ", "{foreach ")
+    node.p1 = ReplaceString(node.p1, "\\{else}", "{else}")
 
   return success
 
@@ -575,8 +590,23 @@ def test():
   testGenerateDocument5(failures)
   testGenerateDocument6(failures)
   testGenerateDocument7(failures)
+  testGenerateDocument8(failures)
 
   return failures.numberValue
+
+def testGenerateDocument8(failures):
+
+  document = StringReference()
+  errorMessage = StringReference()
+
+  template = "This is a test: {print b} {foreach x in a}{print x}{end}."
+  json = "{\"a\": [1, 2, 3], \"b\": 4}"
+  success = GenerateDocument(template, json, document, errorMessage)
+
+  if success:
+    AssertStringEquals("This is a test: 4 123.", document.string, failures)
+
+  AssertTrue(success, failures)
 
 def testTokenGeneration(failures):
 
@@ -671,7 +701,7 @@ def AssertTemplateResult(template, json, result, failures):
   AssertTrue(success, failures)
 
   if success:
-    success = GenerateDocument(template, data.element, document, errorMessage)
+    success = GenerateDocumentBasedOnElement(template, data.element, document, errorMessage)
 
     AssertTrue(success, failures)
 
@@ -690,7 +720,7 @@ def AssertTemplateError(template, json, errorMessage, failures):
   AssertTrue(success, failures)
 
   if success:
-    success = GenerateDocument(template, data.element, document, errorMessageRef)
+    success = GenerateDocumentBasedOnElement(template, data.element, document, errorMessageRef)
 
     AssertFalse(success, failures)
 
@@ -884,7 +914,7 @@ def IsValidJSON(json, errorMessage):
 
 def JSONTokenize(json, tokensReference, errorMessages):
 
-  ll = lCreateLinkedListString()
+  ll = CreateLinkedListString()
   success = True
 
   stringLength = NumberReference()
@@ -895,37 +925,37 @@ def JSONTokenize(json, tokensReference, errorMessages):
     c = json[int(i)]
 
     if c == '{':
-      lLinkedListAddString(ll, "{")
+      LinkedListAddString(ll, "{")
       i = i + 1.0
     elif c == '}':
-      lLinkedListAddString(ll, "}")
+      LinkedListAddString(ll, "}")
       i = i + 1.0
     elif c == '[':
-      lLinkedListAddString(ll, "[")
+      LinkedListAddString(ll, "[")
       i = i + 1.0
     elif c == ']':
-      lLinkedListAddString(ll, "]")
+      LinkedListAddString(ll, "]")
       i = i + 1.0
     elif c == ':':
-      lLinkedListAddString(ll, ":")
+      LinkedListAddString(ll, ":")
       i = i + 1.0
     elif c == ',':
-      lLinkedListAddString(ll, ",")
+      LinkedListAddString(ll, ",")
       i = i + 1.0
     elif c == 'f':
       success = GetJSONPrimitiveName(json, i, errorMessages, "false", tokenReference)
       if success:
-        lLinkedListAddString(ll, "false")
+        LinkedListAddString(ll, "false")
         i = i + len("false")
     elif c == 't':
       success = GetJSONPrimitiveName(json, i, errorMessages, "true", tokenReference)
       if success:
-        lLinkedListAddString(ll, "true")
+        LinkedListAddString(ll, "true")
         i = i + len("true")
     elif c == 'n':
       success = GetJSONPrimitiveName(json, i, errorMessages, "null", tokenReference)
       if success:
-        lLinkedListAddString(ll, "null")
+        LinkedListAddString(ll, "null")
         i = i + len("null")
     elif c == ' ' or c == '\n' or c == '\t' or c == '\r':
       # Skip.
@@ -933,25 +963,25 @@ def JSONTokenize(json, tokensReference, errorMessages):
     elif c == '\"':
       success = GetJSONString(json, i, tokenReference, stringLength, errorMessages)
       if success:
-        lLinkedListAddString(ll, tokenReference.string)
+        LinkedListAddString(ll, tokenReference.string)
         i = i + stringLength.numberValue
     elif IsJSONNumberCharacter(c):
       success = GetJSONNumberToken(json, i, tokenReference, errorMessages)
       if success:
-        lLinkedListAddString(ll, tokenReference.string)
+        LinkedListAddString(ll, tokenReference.string)
         i = i + len(tokenReference.string)
     else:
-      str = strConcatenateCharacter("Invalid start of Token: ", c)
+      str = ConcatenateCharacter("Invalid start of Token: ", c)
       stringReference = CreateStringReference(str)
-      lAddStringRef(errorMessages, stringReference)
+      AddStringRef(errorMessages, stringReference)
       i = i + 1.0
       success = False
   
 
   if success:
-    lLinkedListAddString(ll, "<end>")
-    tokensReference.stringArray = lLinkedListStringsToArray(ll)
-    lFreeLinkedListString(ll)
+    LinkedListAddString(ll, "<end>")
+    tokensReference.stringArray = LinkedListStringsToArray(ll)
+    FreeLinkedListString(ll)
 
   return success
 
@@ -969,7 +999,7 @@ def GetJSONNumberToken(json, start, tokenReference, errorMessages):
     i = i + 1.0
   
 
-  numberString = strSubstring(json, start, end)
+  numberString = Substring(json, start, end)
 
   success = IsValidJSONNumber(numberString, errorMessages)
 
@@ -989,7 +1019,7 @@ def IsValidJSONNumber(n, errorMessages):
     success = IsValidJSONNumberAfterSign(n, i, errorMessages)
   else:
     success = False
-    lAddStringRef(errorMessages, CreateStringReference("Number must contain at least one digit."))
+    AddStringRef(errorMessages, CreateStringReference("Number must contain at least one digit."))
 
   return success
 
@@ -1010,7 +1040,7 @@ def IsValidJSONNumberAfterSign(n, i, errorMessages):
       success = True
   else:
     success = False
-    lAddStringRef(errorMessages, CreateStringReference("A number must start with 0-9 (after the optional sign)."))
+    AddStringRef(errorMessages, CreateStringReference("A number must start with 0-9 (after the optional sign)."))
 
   return success
 
@@ -1046,10 +1076,10 @@ def IsValidJSONNumberFromDotOrExponent(n, i, errorMessages):
           success = True
       else:
         success = False
-        lAddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point."))
+        AddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point."))
     else:
       success = False
-      lAddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point."))
+      AddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point."))
 
   if i < len(n) and success:
     if n[int(i)] == 'e' or n[int(i)] == 'E':
@@ -1057,19 +1087,19 @@ def IsValidJSONNumberFromDotOrExponent(n, i, errorMessages):
       success = IsValidJSONNumberFromExponent(n, i, errorMessages)
     else:
       success = False
-      lAddStringRef(errorMessages, CreateStringReference("Expected e or E."))
+      AddStringRef(errorMessages, CreateStringReference("Expected e or E."))
   elif i == len(n) and success:
     # If number with decimal point.
     success = True
   else:
     success = False
-    lAddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point."))
+    AddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point."))
 
   if wasDotAndOrE:
     pass
   else:
     success = False
-    lAddStringRef(errorMessages, CreateStringReference("Exprected decimal point or e or E."))
+    AddStringRef(errorMessages, CreateStringReference("Exprected decimal point or e or E."))
 
   return success
 
@@ -1092,16 +1122,16 @@ def IsValidJSONNumberFromExponent(n, i, errorMessages):
           success = True
         else:
           success = False
-          lAddStringRef(errorMessages, CreateStringReference("There was characters following the exponent."))
+          AddStringRef(errorMessages, CreateStringReference("There was characters following the exponent."))
       else:
         success = False
-        lAddStringRef(errorMessages, CreateStringReference("There must be a digit following the optional exponent sign."))
+        AddStringRef(errorMessages, CreateStringReference("There must be a digit following the optional exponent sign."))
     else:
       success = False
-      lAddStringRef(errorMessages, CreateStringReference("There must be a digit following optional the exponent sign."))
+      AddStringRef(errorMessages, CreateStringReference("There must be a digit following optional the exponent sign."))
   else:
     success = False
-    lAddStringRef(errorMessages, CreateStringReference("There must be a sign or a digit following e or E."))
+    AddStringRef(errorMessages, CreateStringReference("There must be a sign or a digit following e or E."))
 
   return success
 
@@ -1137,12 +1167,12 @@ def GetJSONPrimitiveName(string, start, errorMessages, primitive, tokenReference
         done = True
     else:
       str = ""
-      str = strConcatenateString(str, "Primitive invalid: ")
-      str = strAppendCharacter(str, c)
-      str = strAppendString(str, " vs ")
-      str = strAppendCharacter(str, p)
+      str = ConcatenateString(str, "Primitive invalid: ")
+      str = AppendCharacter(str, c)
+      str = AppendString(str, " vs ")
+      str = AppendCharacter(str, p)
 
-      lAddStringRef(errorMessages, CreateStringReference(str))
+      AddStringRef(errorMessages, CreateStringReference(str))
       done = True
       success = False
     i = i + 1.0
@@ -1156,7 +1186,7 @@ def GetJSONPrimitiveName(string, start, errorMessages, primitive, tokenReference
     if StringsEqual(primitive, "null"):
       token = "null"
   else:
-    lAddStringRef(errorMessages, CreateStringReference("Primitive invalid"))
+    AddStringRef(errorMessages, CreateStringReference("Primitive invalid"))
     success = False
 
   tokenReference.string = token
@@ -1226,7 +1256,7 @@ def GetJSONString(json, start, tokenReference, stringLengthReference, errorMessa
     tokenReference.string = string
     success = True
   else:
-    lAddStringRef(errorMessages, CreateStringReference("End of string was not found."))
+    AddStringRef(errorMessages, CreateStringReference("End of string was not found."))
     success = False
 
   return success
@@ -1264,20 +1294,20 @@ def IsValidJSONStringInJSON(json, start, characterCount, stringLengthReference, 
                   pass
                 else:
                   success = False
-                  lAddStringRef(errorMessages, CreateStringReference("\\u must be followed by four hexadecimal digits."))
+                  AddStringRef(errorMessages, CreateStringReference("\\u must be followed by four hexadecimal digits."))
                 j = j + 1.0
               
               characterCount.numberValue = characterCount.numberValue + 1.0
               i = i + 4.0
             else:
               success = False
-              lAddStringRef(errorMessages, CreateStringReference("\\u must be followed by four characters."))
+              AddStringRef(errorMessages, CreateStringReference("\\u must be followed by four characters."))
           else:
             success = False
-            lAddStringRef(errorMessages, CreateStringReference("Escaped character invalid."))
+            AddStringRef(errorMessages, CreateStringReference("Escaped character invalid."))
         else:
           success = False
-          lAddStringRef(errorMessages, CreateStringReference("There must be at least two character after string escape."))
+          AddStringRef(errorMessages, CreateStringReference("There must be at least two character after string escape."))
       elif json[int(i)] == '\"':
         characterCount.numberValue = characterCount.numberValue + 1.0
         done = True
@@ -1285,7 +1315,7 @@ def IsValidJSONStringInJSON(json, start, characterCount, stringLengthReference, 
         characterCount.numberValue = characterCount.numberValue + 1.0
     else:
       success = False
-      lAddStringRef(errorMessages, CreateStringReference("Unicode code points 0-31 not allowed in JSON string."))
+      AddStringRef(errorMessages, CreateStringReference("Unicode code points 0-31 not allowed in JSON string."))
     i = i + 1.0
   
 
@@ -1293,7 +1323,7 @@ def IsValidJSONStringInJSON(json, start, characterCount, stringLengthReference, 
     stringLengthReference.numberValue = i - start
   else:
     success = False
-    lAddStringRef(errorMessages, CreateStringReference("String must end with \"."))
+    AddStringRef(errorMessages, CreateStringReference("String must end with \"."))
 
   return success
 
@@ -1435,12 +1465,15 @@ def ComputeJSONBooleanStringLength(element):
 
 def ComputeJSONNumberStringLength(element):
 
-  if fabs(element.number) >= 10.0**15.0 or fabs(element.number) <= 10.0**( -15.0):
-    a = nCreateStringScientificNotationDecimalFromNumber(element.number)
-    length = len(a)
+  if element.number != 0.0:
+    if fabs(element.number) >= 10.0**15.0 or fabs(element.number) <= 10.0**( -15.0):
+      a = nCreateStringScientificNotationDecimalFromNumber(element.number)
+      length = len(a)
+    else:
+      a = nCreateStringDecimalFromNumber(element.number)
+      length = len(a)
   else:
-    a = nCreateStringDecimalFromNumber(element.number)
-    length = len(a)
+    length = 1.0
 
   return length
 
@@ -1578,7 +1611,7 @@ def WriteJSON(element):
   elif StringsEqual(element.type, "number"):
     WriteNumber(element, result, index)
   elif StringsEqual(element.type, "null"):
-    strWriteStringToStingStream(result, index, "null")
+    WriteStringToStingStream(result, index, "null")
   elif StringsEqual(element.type, "boolean"):
     WriteBooleanValue(element, result, index)
 
@@ -1586,42 +1619,45 @@ def WriteJSON(element):
 
 def WriteBooleanValue(element, result, index):
   if element.booleanValue:
-    strWriteStringToStingStream(result, index, "true")
+    WriteStringToStingStream(result, index, "true")
   else:
-    strWriteStringToStingStream(result, index, "false")
+    WriteStringToStingStream(result, index, "false")
 
 def WriteNumber(element, result, index):
 
-  if fabs(element.number) >= 10.0**15.0 or fabs(element.number) <= 10.0**( -15.0):
-    numberString = nCreateStringScientificNotationDecimalFromNumber(element.number)
+  if element.number != 0.0:
+    if fabs(element.number) >= 10.0**15.0 or fabs(element.number) <= 10.0**( -15.0):
+      numberString = nCreateStringScientificNotationDecimalFromNumber(element.number)
+    else:
+      numberString = nCreateStringDecimalFromNumber(element.number)
   else:
     numberString = nCreateStringDecimalFromNumber(element.number)
 
-  strWriteStringToStingStream(result, index, numberString)
+  WriteStringToStingStream(result, index, numberString)
 
 def WriteArray(element, result, index):
 
-  strWriteStringToStingStream(result, index, "[")
+  WriteStringToStingStream(result, index, "[")
 
   i = 0.0
   while i < len(element.array):
     arrayElement = element.array[int(i)]
 
     s = WriteJSON(arrayElement)
-    strWriteStringToStingStream(result, index, s)
+    WriteStringToStingStream(result, index, s)
 
     if i + 1.0 != len(element.array):
-      strWriteStringToStingStream(result, index, ",")
+      WriteStringToStingStream(result, index, ",")
     i = i + 1.0
   
 
-  strWriteStringToStingStream(result, index, "]")
+  WriteStringToStingStream(result, index, "]")
 
 def WriteString(element, result, index):
-  strWriteStringToStingStream(result, index, "\"")
+  WriteStringToStingStream(result, index, "\"")
   element.string = JSONEscapeString(element.string)
-  strWriteStringToStingStream(result, index, element.string)
-  strWriteStringToStingStream(result, index, "\"")
+  WriteStringToStingStream(result, index, element.string)
+  WriteStringToStingStream(result, index, "\"")
 
 def JSONEscapeString(string):
 
@@ -1635,9 +1671,9 @@ def JSONEscapeString(string):
   while i < len(string):
     if JSONMustBeEscaped(string[int(i)], lettersReference):
       escaped = JSONEscapeCharacter(string[int(i)])
-      strWriteStringToStingStream(ns, index, escaped)
+      WriteStringToStingStream(ns, index, escaped)
     else:
-      strWriteCharacterToStingStream(ns, index, string[int(i)])
+      WriteCharacterToStingStream(ns, index, string[int(i)])
     i = i + 1.0
   
 
@@ -1754,7 +1790,7 @@ def JSONMustBeEscaped(c, letters):
 
 def WriteObject(element, result, index):
 
-  strWriteStringToStingStream(result, index, "{")
+  WriteStringToStingStream(result, index, "{")
 
   keys = GetStringElementMapKeySet(element.object)
   i = 0.0
@@ -1763,20 +1799,20 @@ def WriteObject(element, result, index):
     key = JSONEscapeString(key)
     objectElement = GetObjectValue(element.object, key)
 
-    strWriteStringToStingStream(result, index, "\"")
-    strWriteStringToStingStream(result, index, key)
-    strWriteStringToStingStream(result, index, "\"")
-    strWriteStringToStingStream(result, index, ":")
+    WriteStringToStingStream(result, index, "\"")
+    WriteStringToStingStream(result, index, key)
+    WriteStringToStingStream(result, index, "\"")
+    WriteStringToStingStream(result, index, ":")
 
     s = WriteJSON(objectElement)
-    strWriteStringToStingStream(result, index, s)
+    WriteStringToStingStream(result, index, s)
 
     if i + 1.0 != len(keys.stringArray):
-      strWriteStringToStingStream(result, index, ",")
+      WriteStringToStingStream(result, index, ",")
     i = i + 1.0
   
 
-  strWriteStringToStingStream(result, index, "}")
+  WriteStringToStingStream(result, index, "}")
 
 def ReadJSON(string, elementReference, errorMessages):
 
@@ -1820,28 +1856,28 @@ def GetJSONValueRecursive(tokens, i, depth, elementReference, errorMessages):
     elementReference.element = CreateNumberElement(stringToDecimalResult)
     i.numberValue = i.numberValue + 1.0
   elif token[int(0.0)] == '\"':
-    substr = strSubstring(token, 1.0, len(token) - 1.0)
+    substr = Substring(token, 1.0, len(token) - 1.0)
     elementReference.element = CreateStringElement(substr)
     i.numberValue = i.numberValue + 1.0
   else:
     str = ""
-    str = strConcatenateString(str, "Invalid token first in value: ")
-    str = strAppendString(str, token)
-    lAddStringRef(errorMessages, CreateStringReference(str))
+    str = ConcatenateString(str, "Invalid token first in value: ")
+    str = AppendString(str, token)
+    AddStringRef(errorMessages, CreateStringReference(str))
     success = False
 
   if success and depth == 0.0:
     if StringsEqual(tokens[int(i.numberValue)].string, "<end>"):
       pass
     else:
-      lAddStringRef(errorMessages, CreateStringReference("The outer value cannot have any tokens following it."))
+      AddStringRef(errorMessages, CreateStringReference("The outer value cannot have any tokens following it."))
       success = False
 
   return success
 
 def GetJSONObject(tokens, i, depth, elementReference, errorMessages):
 
-  keys = lCreateLinkedListString()
+  keys = CreateLinkedListString()
   values = CreateLinkedListElements()
   element = CreateObjectElement(0.0)
   valueReference = ElementReference()
@@ -1862,9 +1898,9 @@ def GetJSONObject(tokens, i, depth, elementReference, errorMessages):
           success = GetJSONValueRecursive(tokens, i, depth, valueReference, errorMessages)
 
           if success:
-            keystring = strSubstring(key, 1.0, len(key) - 1.0)
+            keystring = Substring(key, 1.0, len(key) - 1.0)
             value = valueReference.element
-            lLinkedListAddString(keys, keystring)
+            LinkedListAddString(keys, keystring)
             LinkedListAddElement(values, value)
 
             comma = tokens[int(i.numberValue)].string
@@ -1875,14 +1911,14 @@ def GetJSONObject(tokens, i, depth, elementReference, errorMessages):
               done = True
         else:
           str = ""
-          str = strConcatenateString(str, "Expected colon after key in object: ")
-          str = strAppendString(str, colon)
-          lAddStringRef(errorMessages, CreateStringReference(str))
+          str = ConcatenateString(str, "Expected colon after key in object: ")
+          str = AppendString(str, colon)
+          AddStringRef(errorMessages, CreateStringReference(str))
 
           success = False
           done = True
       else:
-        lAddStringRef(errorMessages, CreateStringReference("Expected string as key in object."))
+        AddStringRef(errorMessages, CreateStringReference("Expected string as key in object."))
 
         done = True
         success = False
@@ -1895,15 +1931,15 @@ def GetJSONObject(tokens, i, depth, elementReference, errorMessages):
       # OK
       element.object.stringListRef.stringArray = None
       element.object.elementListRef.array = None
-      element.object.stringListRef.stringArray = lLinkedListStringsToArray(keys)
+      element.object.stringListRef.stringArray = LinkedListStringsToArray(keys)
       element.object.elementListRef.array = LinkedListElementsToArray(values)
       elementReference.element = element
       i.numberValue = i.numberValue + 1.0
     else:
-      lAddStringRef(errorMessages, CreateStringReference("Expected close curly brackets at end of object value."))
+      AddStringRef(errorMessages, CreateStringReference("Expected close curly brackets at end of object value."))
       success = False
 
-  lFreeLinkedListString(keys)
+  FreeLinkedListString(keys)
   FreeLinkedListElements(values)
   valueReference = None
 
@@ -1945,7 +1981,7 @@ def GetJSONArray(tokens, i, depth, elementReference, errorMessages):
     element.array = None
     element.array = LinkedListElementsToArray(elements)
   else:
-    lAddStringRef(errorMessages, CreateStringReference("Expected close square bracket at end of array."))
+    AddStringRef(errorMessages, CreateStringReference("Expected close square bracket at end of array."))
     success = False
 
   elementReference.element = element
@@ -1986,7 +2022,7 @@ def GetObjectValueWithCheck(stringElementMap, key, foundReference):
   return result
 
 def PutStringElementMap(stringElementMap, keystring, value):
-  lAddStringRef(stringElementMap.stringListRef, CreateStringReference(keystring))
+  AddStringRef(stringElementMap.stringListRef, CreateStringReference(keystring))
   AddElementRef(stringElementMap.elementListRef, value)
 
 def SetStringElementMap(stringElementMap, index, keystring, value):
@@ -2931,6 +2967,36 @@ def LinkedListToDynamicArrayNumbers(ll):
 
   return da
 
+def DynamicArrayNumbersIndexOf(arr, n, foundReference):
+
+  found = False
+  i = 0.0
+  while i < arr.length and  not found :
+    if arr.array[int(i)] == n:
+      found = True
+    i = i + 1.0
+  
+  if  not found :
+    i =  -1.0
+  else:
+    i = i - 1.0
+
+  foundReference.booleanValue = found
+
+  return i
+
+def DynamicArrayNumbersIsInArray(arr, n):
+
+  found = False
+  i = 0.0
+  while i < arr.length and  not found :
+    if arr.array[int(i)] == n:
+      found = True
+    i = i + 1.0
+  
+
+  return found
+
 def AddCharacter(list, a):
 
   newlist =  [None]*int(len(list) + 1.0)
@@ -2974,7 +3040,7 @@ def GetCharacterRef(list, i):
 def RemoveCharacterRef(list, i):
   list.string = RemoveCharacter(list.string, i)
 
-def sWriteStringToStingStream(stream, index, src):
+def WriteStringToStingStream(stream, index, src):
 
   i = 0.0
   while i < len(src):
@@ -2983,27 +3049,27 @@ def sWriteStringToStingStream(stream, index, src):
   
   index.numberValue = index.numberValue + len(src)
 
-def sWriteCharacterToStingStream(stream, index, src):
+def WriteCharacterToStingStream(stream, index, src):
   stream[int(index.numberValue)] = src
   index.numberValue = index.numberValue + 1.0
 
-def sWriteBooleanToStingStream(stream, index, src):
+def WriteBooleanToStingStream(stream, index, src):
   if src:
-    sWriteStringToStingStream(stream, index, "true")
+    WriteStringToStingStream(stream, index, "true")
   else:
-    sWriteStringToStingStream(stream, index, "false")
+    WriteStringToStingStream(stream, index, "false")
 
-def sSubstringWithCheck(string, fromx, to, stringReference):
+def SubstringWithCheck(string, fromx, to, stringReference):
 
   if fromx >= 0.0 and fromx <= len(string) and to >= 0.0 and to <= len(string) and fromx <= to:
-    stringReference.string = sSubstring(string, fromx, to)
+    stringReference.string = Substring(string, fromx, to)
     success = True
   else:
     success = False
 
   return success
 
-def sSubstring(string, fromx, to):
+def Substring(string, fromx, to):
 
   length = to - fromx
 
@@ -3017,15 +3083,15 @@ def sSubstring(string, fromx, to):
 
   return n
 
-def sAppendString(s1, s2):
+def AppendString(s1, s2):
 
-  newString = sConcatenateString(s1, s2)
+  newString = ConcatenateString(s1, s2)
 
   s1 = None
 
   return newString
 
-def sConcatenateString(s1, s2):
+def ConcatenateString(s1, s2):
 
   newString =  [None]*int(len(s1) + len(s2))
 
@@ -3043,15 +3109,15 @@ def sConcatenateString(s1, s2):
 
   return newString
 
-def sAppendCharacter(string, c):
+def AppendCharacter(string, c):
 
-  newString = sConcatenateCharacter(string, c)
+  newString = ConcatenateCharacter(string, c)
 
   string = None
 
   return newString
 
-def sConcatenateCharacter(string, c):
+def ConcatenateCharacter(string, c):
   newString =  [None]*int(len(string) + 1.0)
 
   i = 0.0
@@ -3064,18 +3130,18 @@ def sConcatenateCharacter(string, c):
 
   return newString
 
-def sSplitByCharacter(toSplit, splitBy):
+def SplitByCharacter(toSplit, splitBy):
 
   stringToSplitBy =  [None]*int(1.0)
   stringToSplitBy[int(0.0)] = splitBy
 
-  split = sSplitByString(toSplit, stringToSplitBy)
+  split = SplitByString(toSplit, stringToSplitBy)
 
   stringToSplitBy = None
 
   return split
 
-def sIndexOfCharacter(string, character, indexReference):
+def IndexOfCharacter(string, character, indexReference):
 
   found = False
   i = 0.0
@@ -3088,17 +3154,17 @@ def sIndexOfCharacter(string, character, indexReference):
 
   return found
 
-def sSubstringEqualsWithCheck(string, fromx, substring, equalsReference):
+def SubstringEqualsWithCheck(string, fromx, substring, equalsReference):
 
   if fromx < len(string):
     success = True
-    equalsReference.booleanValue = sSubstringEquals(string, fromx, substring)
+    equalsReference.booleanValue = SubstringEquals(string, fromx, substring)
   else:
     success = False
 
   return success
 
-def sSubstringEquals(string, fromx, substring):
+def SubstringEquals(string, fromx, substring):
 
   equal = True
   if len(string) - fromx >= len(substring):
@@ -3113,12 +3179,12 @@ def sSubstringEquals(string, fromx, substring):
 
   return equal
 
-def sIndexOfString(string, substring, indexReference):
+def IndexOfString(string, substring, indexReference):
 
   found = False
   i = 0.0
   while i < len(string) - len(substring) + 1.0 and  not found :
-    if sSubstringEquals(string, i, substring):
+    if SubstringEquals(string, i, substring):
       found = True
       indexReference.numberValue = i
     i = i + 1.0
@@ -3126,7 +3192,7 @@ def sIndexOfString(string, substring, indexReference):
 
   return found
 
-def sContainsCharacter(string, character):
+def ContainsCharacter(string, character):
 
   found = False
   i = 0.0
@@ -3138,10 +3204,10 @@ def sContainsCharacter(string, character):
 
   return found
 
-def sContainsString(string, substring):
-  return sIndexOfString(string, substring, NumberReference())
+def ContainsString(string, substring):
+  return IndexOfString(string, substring, NumberReference())
 
-def sToUpperCase(string):
+def ToUpperCase(string):
 
   i = 0.0
   while i < len(string):
@@ -3149,7 +3215,7 @@ def sToUpperCase(string):
     i = i + 1.0
   
 
-def sToLowerCase(string):
+def ToLowerCase(string):
 
   i = 0.0
   while i < len(string):
@@ -3157,7 +3223,7 @@ def sToLowerCase(string):
     i = i + 1.0
   
 
-def sEqualsIgnoreCase(a, b):
+def EqualsIgnoreCase(a, b):
 
   if len(a) == len(b):
     equal = True
@@ -3172,7 +3238,7 @@ def sEqualsIgnoreCase(a, b):
 
   return equal
 
-def sReplaceString(string, toReplace, replaceWith):
+def ReplaceString(string, toReplace, replaceWith):
 
   da = CreateDynamicArrayCharacters()
 
@@ -3180,7 +3246,7 @@ def sReplaceString(string, toReplace, replaceWith):
 
   i = 0.0
   while i < len(string):
-    success = sSubstringEqualsWithCheck(string, i, toReplace, equalsReference)
+    success = SubstringEqualsWithCheck(string, i, toReplace, equalsReference)
     if success:
       success = equalsReference.booleanValue
 
@@ -3202,7 +3268,7 @@ def sReplaceString(string, toReplace, replaceWith):
 
   return result
 
-def sReplaceCharacterToNew(string, toReplace, replaceWith):
+def ReplaceCharacterToNew(string, toReplace, replaceWith):
 
   result =  [None]*int(len(string))
 
@@ -3217,7 +3283,7 @@ def sReplaceCharacterToNew(string, toReplace, replaceWith):
 
   return result
 
-def sReplaceCharacter(string, toReplace, replaceWith):
+def ReplaceCharacter(string, toReplace, replaceWith):
 
   i = 0.0
   while i < len(string):
@@ -3226,7 +3292,7 @@ def sReplaceCharacter(string, toReplace, replaceWith):
     i = i + 1.0
   
 
-def sTrim(string):
+def Trim(string):
 
   # Find whitepaces at the start.
   lastWhitespaceLocationStart =  -1.0
@@ -3253,29 +3319,29 @@ def sTrim(string):
   
 
   if lastWhitespaceLocationStart < lastWhitespaceLocationEnd:
-    result = sSubstring(string, lastWhitespaceLocationStart + 1.0, lastWhitespaceLocationEnd)
+    result = Substring(string, lastWhitespaceLocationStart + 1.0, lastWhitespaceLocationEnd)
   else:
     result =  [None]*int(0.0)
 
   return result
 
-def sStartsWith(string, start):
+def StartsWith(string, start):
 
   startsWithString = False
   if len(string) >= len(start):
-    startsWithString = sSubstringEquals(string, 0.0, start)
+    startsWithString = SubstringEquals(string, 0.0, start)
 
   return startsWithString
 
-def sEndsWith(string, end):
+def EndsWith(string, end):
 
   endsWithString = False
   if len(string) >= len(end):
-    endsWithString = sSubstringEquals(string, len(string) - len(end), end)
+    endsWithString = SubstringEquals(string, len(string) - len(end), end)
 
   return endsWithString
 
-def sSplitByString(toSplit, splitBy):
+def SplitByString(toSplit, splitBy):
 
   split =  [None]*int(0.0)
 
@@ -3284,14 +3350,14 @@ def sSplitByString(toSplit, splitBy):
   while i < len(toSplit):
     c = toSplit[int(i)]
 
-    if sSubstringEquals(toSplit, i, splitBy):
+    if SubstringEquals(toSplit, i, splitBy):
       n = StringReference()
       n.string = next
       split = AddString(split, n)
       next =  [None]*int(0.0)
       i = i + len(splitBy)
     else:
-      next = sAppendCharacter(next, c)
+      next = AppendCharacter(next, c)
       i = i + 1.0
   
 
@@ -3301,7 +3367,7 @@ def sSplitByString(toSplit, splitBy):
 
   return split
 
-def sStringIsBefore(a, b):
+def StringIsBefore(a, b):
 
   before = False
   equal = True
@@ -3327,339 +3393,56 @@ def sStringIsBefore(a, b):
 
   return before
 
-def strWriteStringToStingStream(stream, index, src):
+def JoinStringsWithSeparator(strings, separator):
 
+  index = CreateNumberReference(0.0)
+
+  length = 0.0
   i = 0.0
-  while i < len(src):
-    stream[int(index.numberValue + i)] = src[int(i)]
+  while i < len(strings):
+    length = length + len(strings[int(i)].string)
     i = i + 1.0
   
-  index.numberValue = index.numberValue + len(src)
+  length = length + (len(strings) - 1.0)*len(separator)
 
-def strWriteCharacterToStingStream(stream, index, src):
-  stream[int(index.numberValue)] = src
-  index.numberValue = index.numberValue + 1.0
+  result =  [None]*int(length)
 
-def strWriteBooleanToStingStream(stream, index, src):
-  if src:
-    strWriteStringToStingStream(stream, index, "true")
-  else:
-    strWriteStringToStingStream(stream, index, "false")
-
-def strSubstringWithCheck(string, fromx, to, stringReference):
-
-  if fromx >= 0.0 and fromx <= len(string) and to >= 0.0 and to <= len(string) and fromx <= to:
-    stringReference.string = strSubstring(string, fromx, to)
-    success = True
-  else:
-    success = False
-
-  return success
-
-def strSubstring(string, fromx, to):
-
-  length = to - fromx
-
-  n =  [None]*int(length)
-
-  i = fromx
-  while i < to:
-    n[int(i - fromx)] = string[int(i)]
+  i = 0.0
+  while i < len(strings):
+    string = strings[int(i)].string
+    WriteStringToStingStream(result, index, string)
+    if i + 1.0 < len(strings):
+      WriteStringToStingStream(result, index, separator)
     i = i + 1.0
   
 
-  return n
-
-def strAppendString(s1, s2):
-
-  newString = strConcatenateString(s1, s2)
-
-  s1 = None
-
-  return newString
-
-def strConcatenateString(s1, s2):
-
-  newString =  [None]*int(len(s1) + len(s2))
-
-  i = 0.0
-  while i < len(s1):
-    newString[int(i)] = s1[int(i)]
-    i = i + 1.0
-  
-
-  i = 0.0
-  while i < len(s2):
-    newString[int(len(s1) + i)] = s2[int(i)]
-    i = i + 1.0
-  
-
-  return newString
-
-def strAppendCharacter(string, c):
-
-  newString = strConcatenateCharacter(string, c)
-
-  string = None
-
-  return newString
-
-def strConcatenateCharacter(string, c):
-  newString =  [None]*int(len(string) + 1.0)
-
-  i = 0.0
-  while i < len(string):
-    newString[int(i)] = string[int(i)]
-    i = i + 1.0
-  
-
-  newString[int(len(string))] = c
-
-  return newString
-
-def strSplitByCharacter(toSplit, splitBy):
-
-  stringToSplitBy =  [None]*int(1.0)
-  stringToSplitBy[int(0.0)] = splitBy
-
-  split = strSplitByString(toSplit, stringToSplitBy)
-
-  stringToSplitBy = None
-
-  return split
-
-def strIndexOfCharacter(string, character, indexReference):
-
-  found = False
-  i = 0.0
-  while i < len(string) and  not found :
-    if string[int(i)] == character:
-      found = True
-      indexReference.numberValue = i
-    i = i + 1.0
-  
-
-  return found
-
-def strSubstringEqualsWithCheck(string, fromx, substring, equalsReference):
-
-  if fromx < len(string):
-    success = True
-    equalsReference.booleanValue = strSubstringEquals(string, fromx, substring)
-  else:
-    success = False
-
-  return success
-
-def strSubstringEquals(string, fromx, substring):
-
-  equal = True
-  i = 0.0
-  while i < len(substring) and equal:
-    if string[int(fromx + i)] != substring[int(i)]:
-      equal = False
-    i = i + 1.0
-  
-
-  return equal
-
-def strIndexOfString(string, substring, indexReference):
-
-  found = False
-  i = 0.0
-  while i < len(string) - len(substring) + 1.0 and  not found :
-    if strSubstringEquals(string, i, substring):
-      found = True
-      indexReference.numberValue = i
-    i = i + 1.0
-  
-
-  return found
-
-def strContainsCharacter(string, character):
-
-  found = False
-  i = 0.0
-  while i < len(string) and  not found :
-    if string[int(i)] == character:
-      found = True
-    i = i + 1.0
-  
-
-  return found
-
-def strContainsString(string, substring):
-  return strIndexOfString(string, substring, NumberReference())
-
-def strToUpperCase(string):
-
-  i = 0.0
-  while i < len(string):
-    string[int(i)] = charToUpperCase(string[int(i)])
-    i = i + 1.0
-  
-
-def strToLowerCase(string):
-
-  i = 0.0
-  while i < len(string):
-    string[int(i)] = charToLowerCase(string[int(i)])
-    i = i + 1.0
-  
-
-def strEqualsIgnoreCase(a, b):
-
-  if len(a) == len(b):
-    equal = True
-    i = 0.0
-    while i < len(a) and equal:
-      if charToLowerCase(a[int(i)]) != charToLowerCase(b[int(i)]):
-        equal = False
-      i = i + 1.0
-    
-  else:
-    equal = False
-
-  return equal
-
-def strReplaceString(string, toReplace, replaceWith):
-
-  equalsReference = BooleanReference()
-  result =  [None]*int(0.0)
-
-  i = 0.0
-  while i < len(string):
-    success = strSubstringEqualsWithCheck(string, i, toReplace, equalsReference)
-    if success:
-      success = equalsReference.booleanValue
-
-    if success and len(toReplace) > 0.0:
-      result = strConcatenateString(result, replaceWith)
-      i = i + len(toReplace)
-    else:
-      result = strConcatenateCharacter(result, string[int(i)])
-      i = i + 1.0
-  
+  index = None
 
   return result
 
-def strReplaceCharacter(string, toReplace, replaceWith):
+def JoinStrings(strings):
 
-  result =  [None]*int(0.0)
+  index = CreateNumberReference(0.0)
 
+  length = 0.0
   i = 0.0
-  while i < len(string):
-    if string[int(i)] == toReplace:
-      result = strConcatenateCharacter(result, replaceWith)
-    else:
-      result = strConcatenateCharacter(result, string[int(i)])
+  while i < len(strings):
+    length = length + len(strings[int(i)].string)
     i = i + 1.0
   
 
-  return result
+  result =  [None]*int(length)
 
-def strTrim(string):
-
-  # Find whitepaces at the start.
-  lastWhitespaceLocationStart =  -1.0
-  firstNonWhitespaceFound = False
   i = 0.0
-  while i < len(string) and  not firstNonWhitespaceFound :
-    if charIsWhiteSpace(string[int(i)]):
-      lastWhitespaceLocationStart = i
-    else:
-      firstNonWhitespaceFound = True
+  while i < len(strings):
+    string = strings[int(i)].string
+    WriteStringToStingStream(result, index, string)
     i = i + 1.0
   
 
-  # Find whitepaces at the end.
-  lastWhitespaceLocationEnd = len(string)
-  firstNonWhitespaceFound = False
-  i = len(string) - 1.0
-  while i >= 0.0 and  not firstNonWhitespaceFound :
-    if charIsWhiteSpace(string[int(i)]):
-      lastWhitespaceLocationEnd = i
-    else:
-      firstNonWhitespaceFound = True
-    i = i - 1.0
-  
-
-  if lastWhitespaceLocationStart < lastWhitespaceLocationEnd:
-    result = strSubstring(string, lastWhitespaceLocationStart + 1.0, lastWhitespaceLocationEnd)
-  else:
-    result =  [None]*int(0.0)
+  index = None
 
   return result
-
-def strStartsWith(string, start):
-
-  startsWithString = False
-  if len(string) >= len(start):
-    startsWithString = strSubstringEquals(string, 0.0, start)
-
-  return startsWithString
-
-def strEndsWith(string, end):
-
-  endsWithString = False
-  if len(string) >= len(end):
-    endsWithString = strSubstringEquals(string, len(string) - len(end), end)
-
-  return endsWithString
-
-def strSplitByString(toSplit, splitBy):
-
-  split =  [None]*int(0.0)
-
-  next =  [None]*int(0.0)
-  i = 0.0
-  while i < len(toSplit):
-    c = toSplit[int(i)]
-
-    if strSubstringEquals(toSplit, i, splitBy):
-      if len(split) != 0.0 or i != 0.0:
-        n = StringReference()
-        n.string = next
-        split = lAddString(split, n)
-        next =  [None]*int(0.0)
-        i = i + len(splitBy)
-    else:
-      next = strAppendCharacter(next, c)
-      i = i + 1.0
-  
-
-  if len(next) > 0.0:
-    n = StringReference()
-    n.string = next
-    split = lAddString(split, n)
-
-  return split
-
-def strStringIsBefore(a, b):
-
-  before = False
-  equal = True
-  done = False
-
-  if len(a) == 0.0 and len(b) > 0.0:
-    before = True
-  else:
-    i = 0.0
-    while i < len(a) and i < len(b) and  not done :
-      if a[int(i)] != b[int(i)]:
-        equal = False
-      if charCharacterIsBefore(a[int(i)], b[int(i)]):
-        before = True
-      if charCharacterIsBefore(b[int(i)], a[int(i)]):
-        done = True
-      i = i + 1.0
-    
-
-    if equal:
-      if len(a) < len(b):
-        before = True
-
-  return before
 
 def StringToNumberArray(string):
 
@@ -4025,7 +3808,14 @@ def nCreateStringScientificNotationDecimalFromNumber(decimal):
       done = True
 
     if  not done :
-      while decimal >= 10.0 or decimal < 1.0:
+      exponent = round(log10(decimal))
+      exponent = min(99.0,exponent)
+      exponent = max( -99.0,exponent)
+
+      decimal = decimal/10.0**exponent
+
+      # Adjust
+      while (decimal >= 10.0 or decimal < 1.0) and fabs(exponent) < 99.0:
         decimal = decimal*multiplier
         exponent = exponent + inc
       
@@ -4035,11 +3825,11 @@ def nCreateStringScientificNotationDecimalFromNumber(decimal):
   nCreateStringFromNumberWithCheck(exponent, 10.0, exponentReference)
 
   if  not isPositive :
-    result = strAppendString(result, "-")
+    result = AppendString(result, "-")
 
-  result = strAppendString(result, mantissaReference.string)
-  result = strAppendString(result, "e")
-  result = strAppendString(result, exponentReference.string)
+  result = AppendString(result, mantissaReference.string)
+  result = AppendString(result, "e")
+  result = AppendString(result, exponentReference.string)
 
   return result
 
@@ -4054,6 +3844,7 @@ def nCreateStringDecimalFromNumber(decimal):
 
 def nCreateStringFromNumberWithCheck(decimal, base, stringReference):
 
+  string = CreateDynamicArrayCharacters()
   isPositive = True
 
   if decimal < 0.0:
@@ -4061,15 +3852,13 @@ def nCreateStringFromNumberWithCheck(decimal, base, stringReference):
     decimal =  -decimal
 
   if decimal == 0.0:
-    stringReference.string = "0"
+    DynamicArrayAddCharacter(string, '0')
     success = True
   else:
     characterReference = CharacterReference()
 
     if IsInteger(base):
       success = True
-
-      string =  [None]*int(0.0)
 
       maximumDigits = nGetMaximumDigitsForBase(base)
 
@@ -4080,16 +3869,16 @@ def nCreateStringFromNumberWithCheck(decimal, base, stringReference):
       hasPrintedPoint = False
 
       if  not isPositive :
-        string = strAppendCharacter(string, '-')
+        DynamicArrayAddCharacter(string, '-')
 
       # Print leading zeros.
       if digitPosition < 0.0:
-        string = strAppendCharacter(string, '0')
-        string = strAppendCharacter(string, '.')
+        DynamicArrayAddCharacter(string, '0')
+        DynamicArrayAddCharacter(string, '.')
         hasPrintedPoint = True
         i = 0.0
         while i <  -digitPosition - 1.0:
-          string = strAppendCharacter(string, '0')
+          DynamicArrayAddCharacter(string, '0')
           i = i + 1.0
         
 
@@ -4103,7 +3892,7 @@ def nCreateStringFromNumberWithCheck(decimal, base, stringReference):
 
         if  not hasPrintedPoint  and digitPosition - i + 1.0 == 0.0:
           if decimal != 0.0:
-            string = strAppendCharacter(string, '.')
+            DynamicArrayAddCharacter(string, '.')
           hasPrintedPoint = True
 
         if decimal == 0.0 and hasPrintedPoint:
@@ -4112,10 +3901,12 @@ def nCreateStringFromNumberWithCheck(decimal, base, stringReference):
           success = nGetSingleDigitCharacterFromNumberWithCheck(d, base, characterReference)
           if success:
             c = characterReference.characterValue
-            string = strAppendCharacter(string, c)
+            DynamicArrayAddCharacter(string, c)
 
         if success:
           decimal = decimal - d*base**(maximumDigits - i - 1.0)
+          decimal = max(decimal,0.0)
+          decimal = round(decimal)
         i = i + 1.0
       
 
@@ -4123,13 +3914,15 @@ def nCreateStringFromNumberWithCheck(decimal, base, stringReference):
         # Print trailing zeros.
         i = 0.0
         while i < digitPosition - maximumDigits + 1.0:
-          string = strAppendCharacter(string, '0')
+          DynamicArrayAddCharacter(string, '0')
           i = i + 1.0
         
-
-        stringReference.string = string
     else:
       success = False
+
+  if success:
+    stringReference.string = DynamicArrayCharactersToArray(string)
+    FreeDynamicArrayCharacters(string)
 
   # Done
   return success
@@ -4248,6 +4041,7 @@ def nCreateNumberFromParts(base, numberIsPositive, beforePoint, afterPoint, expo
 def nExtractPartsFromNumberString(n, base, numberIsPositive, beforePoint, afterPoint, exponentIsPositive, exponent, errorMessages):
 
   i = 0.0
+  complete = False
 
   if i < len(n):
     if n[int(i)] == '-':
@@ -4257,109 +4051,46 @@ def nExtractPartsFromNumberString(n, base, numberIsPositive, beforePoint, afterP
       numberIsPositive.booleanValue = True
       i = i + 1.0
 
-    success = nExtractPartsFromNumberStringFromSign(n, base, i, beforePoint, afterPoint, exponentIsPositive, exponent, errorMessages)
+    success = True
   else:
     success = False
     errorMessages.string = "Number cannot have length zero."
 
-  return success
-
-def nExtractPartsFromNumberStringFromSign(n, base, i, beforePoint, afterPoint, exponentIsPositive, exponent, errorMessages):
-
-  done = False
-  count = 0.0
-  while i + count < len(n) and  not done :
-    if nCharacterIsNumberCharacterInBase(n[int(i + count)], base):
-      count = count + 1.0
-    else:
-      done = True
-  
-
-  if count >= 1.0:
-    beforePoint.numberArray =  [None]*int(count)
-
-    j = 0.0
-    while j < count:
-      beforePoint.numberArray[int(j)] = nGetNumberFromNumberCharacterForBase(n[int(i + j)], base)
-      j = j + 1.0
+  if success:
+    done = False
+    count = 0.0
+    while i + count < len(n) and  not done :
+      if nCharacterIsNumberCharacterInBase(n[int(i + count)], base):
+        count = count + 1.0
+      else:
+        done = True
     
 
-    i = i + count
+    if count >= 1.0:
+      beforePoint.numberArray =  [None]*int(count)
 
-    if i < len(n):
-      success = nExtractPartsFromNumberStringFromPointOrExponent(n, base, i, afterPoint, exponentIsPositive, exponent, errorMessages)
-    else:
-      afterPoint.numberArray =  [None]*int(0.0)
-      exponent.numberArray =  [None]*int(0.0)
-      success = True
-  else:
-    success = False
-    errorMessages.string = "Number must have at least one number after the optional sign."
-
-  return success
-
-def nExtractPartsFromNumberStringFromPointOrExponent(n, base, i, afterPoint, exponentIsPositive, exponent, errorMessages):
-
-  if n[int(i)] == '.':
-    i = i + 1.0
-
-    if i < len(n):
-      done = False
-      count = 0.0
-      while i + count < len(n) and  not done :
-        if nCharacterIsNumberCharacterInBase(n[int(i + count)], base):
-          count = count + 1.0
-        else:
-          done = True
+      j = 0.0
+      while j < count:
+        beforePoint.numberArray[int(j)] = nGetNumberFromNumberCharacterForBase(n[int(i + j)], base)
+        j = j + 1.0
       
 
-      if count >= 1.0:
-        afterPoint.numberArray =  [None]*int(count)
+      i = i + count
 
-        j = 0.0
-        while j < count:
-          afterPoint.numberArray[int(j)] = nGetNumberFromNumberCharacterForBase(n[int(i + j)], base)
-          j = j + 1.0
-        
-
-        i = i + count
-
-        if i < len(n):
-          success = nExtractPartsFromNumberStringFromExponent(n, base, i, exponentIsPositive, exponent, errorMessages)
-        else:
-          exponent.numberArray =  [None]*int(0.0)
-          success = True
+      if i < len(n):
+        success = True
       else:
-        success = False
-        errorMessages.string = "There must be at least one digit after the decimal point."
+        afterPoint.numberArray =  [None]*int(0.0)
+        exponent.numberArray =  [None]*int(0.0)
+        success = True
+        complete = True
     else:
       success = False
-      errorMessages.string = "There must be at least one digit after the decimal point."
-  elif base <= 14.0 and (n[int(i)] == 'e' or n[int(i)] == 'E'):
-    if i < len(n):
-      success = nExtractPartsFromNumberStringFromExponent(n, base, i, exponentIsPositive, exponent, errorMessages)
-      afterPoint.numberArray =  [None]*int(0.0)
-    else:
-      success = False
-      errorMessages.string = "There must be at least one digit after the exponent."
-  else:
-    success = False
-    errorMessages.string = "Expected decimal point or exponent symbol."
+      errorMessages.string = "Number must have at least one number after the optional sign."
 
-  return success
-
-def nExtractPartsFromNumberStringFromExponent(n, base, i, exponentIsPositive, exponent, errorMessages):
-
-  if base <= 14.0 and (n[int(i)] == 'e' or n[int(i)] == 'E'):
-    i = i + 1.0
-
-    if i < len(n):
-      if n[int(i)] == '-':
-        exponentIsPositive.booleanValue = False
-        i = i + 1.0
-      elif n[int(i)] == '+':
-        exponentIsPositive.booleanValue = True
-        i = i + 1.0
+  if success and  not complete :
+    if n[int(i)] == '.':
+      i = i + 1.0
 
       if i < len(n):
         done = False
@@ -4372,33 +4103,89 @@ def nExtractPartsFromNumberStringFromExponent(n, base, i, exponentIsPositive, ex
         
 
         if count >= 1.0:
-          exponent.numberArray =  [None]*int(count)
+          afterPoint.numberArray =  [None]*int(count)
 
           j = 0.0
           while j < count:
-            exponent.numberArray[int(j)] = nGetNumberFromNumberCharacterForBase(n[int(i + j)], base)
+            afterPoint.numberArray[int(j)] = nGetNumberFromNumberCharacterForBase(n[int(i + j)], base)
             j = j + 1.0
           
 
           i = i + count
 
-          if i == len(n):
+          if i < len(n):
             success = True
           else:
-            success = False
-            errorMessages.string = "There cannot be any characters past the exponent of the number."
+            exponent.numberArray =  [None]*int(0.0)
+            success = True
+            complete = True
         else:
           success = False
           errorMessages.string = "There must be at least one digit after the decimal point."
       else:
         success = False
+        errorMessages.string = "There must be at least one digit after the decimal point."
+    elif base <= 14.0 and (n[int(i)] == 'e' or n[int(i)] == 'E'):
+      if i < len(n):
+        success = True
+        afterPoint.numberArray =  [None]*int(0.0)
+      else:
+        success = False
+        errorMessages.string = "There must be at least one digit after the exponent."
+    else:
+      success = False
+      errorMessages.string = "Expected decimal point or exponent symbol."
+
+  if success and  not complete :
+    if base <= 14.0 and (n[int(i)] == 'e' or n[int(i)] == 'E'):
+      i = i + 1.0
+
+      if i < len(n):
+        if n[int(i)] == '-':
+          exponentIsPositive.booleanValue = False
+          i = i + 1.0
+        elif n[int(i)] == '+':
+          exponentIsPositive.booleanValue = True
+          i = i + 1.0
+
+        if i < len(n):
+          done = False
+          count = 0.0
+          while i + count < len(n) and  not done :
+            if nCharacterIsNumberCharacterInBase(n[int(i + count)], base):
+              count = count + 1.0
+            else:
+              done = True
+          
+
+          if count >= 1.0:
+            exponent.numberArray =  [None]*int(count)
+
+            j = 0.0
+            while j < count:
+              exponent.numberArray[int(j)] = nGetNumberFromNumberCharacterForBase(n[int(i + j)], base)
+              j = j + 1.0
+            
+
+            i = i + count
+
+            if i == len(n):
+              success = True
+            else:
+              success = False
+              errorMessages.string = "There cannot be any characters past the exponent of the number."
+          else:
+            success = False
+            errorMessages.string = "There must be at least one digit after the decimal point."
+        else:
+          success = False
+          errorMessages.string = "There must be at least one digit after the exponent symbol."
+      else:
+        success = False
         errorMessages.string = "There must be at least one digit after the exponent symbol."
     else:
       success = False
-      errorMessages.string = "There must be at least one digit after the exponent symbol."
-  else:
-    success = False
-    errorMessages.string = "Expected exponent symbol."
+      errorMessages.string = "Expected exponent symbol."
 
   return success
 
@@ -4446,7 +4233,7 @@ def nStringToNumberArray(str):
 
 def nStringToNumberArrayWithCheck(str, numberArrayReference, errorMessage):
 
-  numberStrings = strSplitByString(str, ",")
+  numberStrings = SplitByString(str, ",")
 
   numbers =  [None]*int(len(numberStrings))
   success = True
@@ -4455,7 +4242,7 @@ def nStringToNumberArrayWithCheck(str, numberArrayReference, errorMessage):
   i = 0.0
   while i < len(numberStrings):
     numberString = numberStrings[int(i)].string
-    trimmedNumberString = strTrim(numberString)
+    trimmedNumberString = Trim(numberString)
     success = nCreateNumberFromDecimalStringWithCheck(trimmedNumberString, numberReference, errorMessage)
     numbers[int(i)] = numberReference.numberValue
 
@@ -4470,687 +4257,6 @@ def nStringToNumberArrayWithCheck(str, numberArrayReference, errorMessage):
   numberArrayReference.numberArray = numbers
 
   return success
-
-class lLinkedListNodeStrings:
-  end = None
-  value = None
-  next = None
-
-class lLinkedListStrings:
-  first = None
-  last = None
-
-class lLinkedListNodeNumbers:
-  next = None
-  end = None
-  value = None
-
-class lLinkedListNumbers:
-  first = None
-  last = None
-
-class lLinkedListCharacters:
-  first = None
-  last = None
-
-class lLinkedListNodeCharacters:
-  end = None
-  value = None
-  next = None
-
-class lDynamicArrayNumbers:
-  array = None
-  length = None
-
-def lAddNumber(list, a):
-
-  newlist =  [None]*int(len(list) + 1.0)
-  i = 0.0
-  while i < len(list):
-    newlist[int(i)] = list[int(i)]
-    i = i + 1.0
-  
-  newlist[int(len(list))] = a
-		
-  list = None
-		
-  return newlist
-
-def lAddNumberRef(list, i):
-  list.numberArray = lAddNumber(list.numberArray, i)
-
-def lRemoveNumber(list, n):
-
-  newlist =  [None]*int(len(list) - 1.0)
-
-  if n >= 0.0 and n < len(list):
-    i = 0.0
-    while i < len(list):
-      if i < n:
-        newlist[int(i)] = list[int(i)]
-      if i > n:
-        newlist[int(i - 1.0)] = list[int(i)]
-      i = i + 1.0
-    
-
-    list = None
-  else:
-    newlist = None
-		
-  return newlist
-
-def lGetNumberRef(list, i):
-  return list.numberArray[int(i)]
-
-def lRemoveNumberRef(list, i):
-  list.numberArray = lRemoveNumber(list.numberArray, i)
-
-def lAddString(list, a):
-
-  newlist =  [None]*int(len(list) + 1.0)
-
-  i = 0.0
-  while i < len(list):
-    newlist[int(i)] = list[int(i)]
-    i = i + 1.0
-  
-  newlist[int(len(list))] = a
-		
-  list = None
-		
-  return newlist
-
-def lAddStringRef(list, i):
-  list.stringArray = lAddString(list.stringArray, i)
-
-def lRemoveString(list, n):
-
-  newlist =  [None]*int(len(list) - 1.0)
-
-  if n >= 0.0 and n < len(list):
-    i = 0.0
-    while i < len(list):
-      if i < n:
-        newlist[int(i)] = list[int(i)]
-      if i > n:
-        newlist[int(i - 1.0)] = list[int(i)]
-      i = i + 1.0
-    
-
-    list = None
-  else:
-    newlist = None
-		
-  return newlist
-
-def lGetStringRef(list, i):
-  return list.stringArray[int(i)]
-
-def lRemoveStringRef(list, i):
-  list.stringArray = lRemoveString(list.stringArray, i)
-
-def lAddBoolean(list, a):
-
-  newlist =  [None]*int(len(list) + 1.0)
-  i = 0.0
-  while i < len(list):
-    newlist[int(i)] = list[int(i)]
-    i = i + 1.0
-  
-  newlist[int(len(list))] = a
-		
-  list = None
-		
-  return newlist
-
-def lAddBooleanRef(list, i):
-  list.booleanArray = lAddBoolean(list.booleanArray, i)
-
-def lRemoveBoolean(list, n):
-
-  newlist =  [None]*int(len(list) - 1.0)
-
-  if n >= 0.0 and n < len(list):
-    i = 0.0
-    while i < len(list):
-      if i < n:
-        newlist[int(i)] = list[int(i)]
-      if i > n:
-        newlist[int(i - 1.0)] = list[int(i)]
-      i = i + 1.0
-    
-
-    list = None
-  else:
-    newlist = None
-		
-  return newlist
-
-def lGetBooleanRef(list, i):
-  return list.booleanArray[int(i)]
-
-def lRemoveDecimalRef(list, i):
-  list.booleanArray = lRemoveBoolean(list.booleanArray, i)
-
-def lCreateLinkedListString():
-
-  ll = lLinkedListStrings()
-  ll.first = lLinkedListNodeStrings()
-  ll.last = ll.first
-  ll.last.end = True
-
-  return ll
-
-def lLinkedListAddString(ll, value):
-  ll.last.end = False
-  ll.last.value = value
-  ll.last.next = lLinkedListNodeStrings()
-  ll.last.next.end = True
-  ll.last = ll.last.next
-
-def lLinkedListStringsToArray(ll):
-
-  node = ll.first
-
-  length = lLinkedListStringsLength(ll)
-
-  array =  [None]*int(length)
-
-  i = 0.0
-  while i < length:
-    array[int(i)] = StringReference()
-    array[int(i)].string = node.value
-    node = node.next
-    i = i + 1.0
-  
-
-  return array
-
-def lLinkedListStringsLength(ll):
-
-  l = 0.0
-  node = ll.first
-  while  not node.end :
-    node = node.next
-    l = l + 1.0
-  
-
-  return l
-
-def lFreeLinkedListString(ll):
-
-  node = ll.first
-
-  while  not node.end :
-    prev = node
-    node = node.next
-    prev = None
-  
-
-  node = None
-
-def lCreateLinkedListNumbers():
-
-  ll = lLinkedListNumbers()
-  ll.first = lLinkedListNodeNumbers()
-  ll.last = ll.first
-  ll.last.end = True
-
-  return ll
-
-def lCreateLinkedListNumbersArray(length):
-
-  lls =  [None]*int(length)
-  i = 0.0
-  while i < len(lls):
-    lls[int(i)] = lCreateLinkedListNumbers()
-    i = i + 1.0
-  
-
-  return lls
-
-def lLinkedListAddNumber(ll, value):
-  ll.last.end = False
-  ll.last.value = value
-  ll.last.next = lLinkedListNodeNumbers()
-  ll.last.next.end = True
-  ll.last = ll.last.next
-
-def lLinkedListNumbersLength(ll):
-
-  l = 0.0
-  node = ll.first
-  while  not node.end :
-    node = node.next
-    l = l + 1.0
-  
-
-  return l
-
-def lLinkedListNumbersIndex(ll, index):
-
-  node = ll.first
-  i = 0.0
-  while i < index:
-    node = node.next
-    i = i + 1.0
-  
-
-  return node.value
-
-def lLinkedListInsertNumber(ll, index, value):
-
-  if index == 0.0:
-    tmp = ll.first
-    ll.first = lLinkedListNodeNumbers()
-    ll.first.next = tmp
-    ll.first.value = value
-    ll.first.end = False
-  else:
-    node = ll.first
-    i = 0.0
-    while i < index - 1.0:
-      node = node.next
-      i = i + 1.0
-    
-
-    tmp = node.next
-    node.next = lLinkedListNodeNumbers()
-    node.next.next = tmp
-    node.next.value = value
-    node.next.end = False
-
-def lLinkedListSet(ll, index, value):
-
-  node = ll.first
-  i = 0.0
-  while i < index:
-    node = node.next
-    i = i + 1.0
-  
-
-  node.next.value = value
-
-def lLinkedListRemoveNumber(ll, index):
-
-  node = ll.first
-  prev = ll.first
-
-  i = 0.0
-  while i < index:
-    prev = node
-    node = node.next
-    i = i + 1.0
-  
-
-  if index == 0.0:
-    ll.first = prev.next
-  if  not prev.next.end :
-    prev.next = prev.next.next
-
-def lFreeLinkedListNumbers(ll):
-
-  node = ll.first
-
-  while  not node.end :
-    prev = node
-    node = node.next
-    prev = None
-  
-
-  node = None
-
-def lFreeLinkedListNumbersArray(lls):
-
-  i = 0.0
-  while i < len(lls):
-    lFreeLinkedListNumbers(lls[int(i)])
-    i = i + 1.0
-  
-  lls = None
-
-def lLinkedListNumbersToArray(ll):
-
-  node = ll.first
-
-  length = lLinkedListNumbersLength(ll)
-
-  array =  [None]*int(length)
-
-  i = 0.0
-  while i < length:
-    array[int(i)] = node.value
-    node = node.next
-    i = i + 1.0
-  
-
-  return array
-
-def lArrayToLinkedListNumbers(array):
-
-  ll = lCreateLinkedListNumbers()
-
-  i = 0.0
-  while i < len(array):
-    lLinkedListAddNumber(ll, array[int(i)])
-    i = i + 1.0
-  
-
-  return ll
-
-def lLinkedListNumbersEqual(a, b):
-
-  an = a.first
-  bn = b.first
-
-  equal = True
-  done = False
-  while equal and  not done :
-    if an.end == bn.end:
-      if an.end:
-        done = True
-      elif an.value == bn.value:
-        an = an.next
-        bn = bn.next
-      else:
-        equal = False
-    else:
-      equal = False
-  
-
-  return equal
-
-def lCreateLinkedListCharacter():
-
-  ll = lLinkedListCharacters()
-  ll.first = lLinkedListNodeCharacters()
-  ll.last = ll.first
-  ll.last.end = True
-
-  return ll
-
-def lLinkedListAddCharacter(ll, value):
-  ll.last.end = False
-  ll.last.value = value
-  ll.last.next = lLinkedListNodeCharacters()
-  ll.last.next.end = True
-  ll.last = ll.last.next
-
-def lLinkedListCharactersToArray(ll):
-
-  node = ll.first
-
-  length = lLinkedListCharactersLength(ll)
-
-  array =  [None]*int(length)
-
-  i = 0.0
-  while i < length:
-    array[int(i)] = node.value
-    node = node.next
-    i = i + 1.0
-  
-
-  return array
-
-def lLinkedListCharactersLength(ll):
-
-  l = 0.0
-  node = ll.first
-  while  not node.end :
-    node = node.next
-    l = l + 1.0
-  
-
-  return l
-
-def lFreeLinkedListCharacter(ll):
-
-  node = ll.first
-
-  while  not node.end :
-    prev = node
-    node = node.next
-    prev = None
-  
-
-  node = None
-
-def lCreateDynamicArrayNumbers():
-
-  da = lDynamicArrayNumbers()
-  da.array =  [None]*int(10.0)
-  da.length = 0.0
-
-  return da
-
-def lCreateDynamicArrayNumbersWithInitialCapacity(capacity):
-
-  da = lDynamicArrayNumbers()
-  da.array =  [None]*int(capacity)
-  da.length = 0.0
-
-  return da
-
-def lDynamicArrayAddNumber(da, value):
-  if da.length == len(da.array):
-    lDynamicArrayNumbersIncreaseSize(da)
-
-  da.array[int(da.length)] = value
-  da.length = da.length + 1.0
-
-def lDynamicArrayNumbersIncreaseSize(da):
-
-  newLength = round(len(da.array)*3.0/2.0)
-  newArray =  [None]*int(newLength)
-
-  i = 0.0
-  while i < len(da.array):
-    newArray[int(i)] = da.array[int(i)]
-    i = i + 1.0
-  
-
-  da.array = None
-
-  da.array = newArray
-
-def lDynamicArrayNumbersDecreaseSizeNecessary(da):
-
-  needsDecrease = False
-
-  if da.length > 10.0:
-    needsDecrease = da.length <= round(len(da.array)*2.0/3.0)
-
-  return needsDecrease
-
-def lDynamicArrayNumbersDecreaseSize(da):
-
-  newLength = round(len(da.array)*2.0/3.0)
-  newArray =  [None]*int(newLength)
-
-  i = 0.0
-  while i < len(da.array):
-    newArray[int(i)] = da.array[int(i)]
-    i = i + 1.0
-  
-
-  da.array = None
-
-  da.array = newArray
-
-def lDynamicArrayNumbersIndex(da, index):
-  return da.array[int(index)]
-
-def lDynamicArrayNumbersLength(da):
-  return da.length
-
-def lDynamicArrayInsertNumber(da, index, value):
-
-  if da.length == len(da.array):
-    lDynamicArrayNumbersIncreaseSize(da)
-
-  i = da.length
-  while i > index:
-    da.array[int(i)] = da.array[int(i - 1.0)]
-    i = i - 1.0
-  
-
-  da.array[int(index)] = value
-
-  da.length = da.length + 1.0
-
-def lDynamicArraySet(da, index, value):
-  da.array[int(index)] = value
-
-def lDynamicArrayRemoveNumber(da, index):
-
-  i = index
-  while i < da.length - 1.0:
-    da.array[int(i)] = da.array[int(i + 1.0)]
-    i = i + 1.0
-  
-
-  da.length = da.length - 1.0
-
-  if lDynamicArrayNumbersDecreaseSizeNecessary(da):
-    lDynamicArrayNumbersDecreaseSize(da)
-
-def lFreeDynamicArrayNumbers(da):
-  da.array = None
-  da = None
-
-def lDynamicArrayNumbersToArray(da):
-
-  array =  [None]*int(da.length)
-
-  i = 0.0
-  while i < da.length:
-    array[int(i)] = da.array[int(i)]
-    i = i + 1.0
-  
-
-  return array
-
-def lArrayToDynamicArrayNumbersWithOptimalSize(array):
-
-  #
-  #         c = 10*(3/2)^n
-  #         log(c) = log(10*(3/2)^n)
-  #         log(c) = log(10) + log((3/2)^n)
-  #         log(c) = 1 + log((3/2)^n)
-  #         log(c) - 1 = log((3/2)^n)
-  #         log(c) - 1 = n*log(3/2)
-  #         n = (log(c) - 1)/log(3/2)
-  #        
-  c = len(array)
-  n = (log(c) - 1.0)/log(3.0/2.0)
-  newCapacity = floor(n) + 1.0
-
-  da = lCreateDynamicArrayNumbersWithInitialCapacity(newCapacity)
-
-  i = 0.0
-  while i < len(array):
-    da.array[int(i)] = array[int(i)]
-    i = i + 1.0
-  
-
-  return da
-
-def lArrayToDynamicArrayNumbers(array):
-
-  da = lDynamicArrayNumbers()
-  da.array = CopyNumberArray(array)
-  da.length = len(array)
-
-  return da
-
-def lDynamicArrayNumbersEqual(a, b):
-
-  equal = True
-  if a.length == b.length:
-    i = 0.0
-    while i < a.length and equal:
-      if a.array[int(i)] != b.array[int(i)]:
-        equal = False
-      i = i + 1.0
-    
-  else:
-    equal = False
-
-  return equal
-
-def lDynamicArrayNumbersToLinkedList(da):
-
-  ll = lCreateLinkedListNumbers()
-
-  i = 0.0
-  while i < da.length:
-    lLinkedListAddNumber(ll, da.array[int(i)])
-    i = i + 1.0
-  
-
-  return ll
-
-def lLinkedListToDynamicArrayNumbers(ll):
-
-  node = ll.first
-
-  da = lDynamicArrayNumbers()
-  da.length = lLinkedListNumbersLength(ll)
-
-  da.array =  [None]*int(da.length)
-
-  i = 0.0
-  while i < da.length:
-    da.array[int(i)] = node.value
-    node = node.next
-    i = i + 1.0
-  
-
-  return da
-
-def lAddCharacter(list, a):
-
-  newlist =  [None]*int(len(list) + 1.0)
-  i = 0.0
-  while i < len(list):
-    newlist[int(i)] = list[int(i)]
-    i = i + 1.0
-  
-  newlist[int(len(list))] = a
-		
-  list = None
-		
-  return newlist
-
-def lAddCharacterRef(list, i):
-  list.string = lAddCharacter(list.string, i)
-
-def lRemoveCharacter(list, n):
-
-  newlist =  [None]*int(len(list) - 1.0)
-
-  if n >= 0.0 and n < len(list):
-    i = 0.0
-    while i < len(list):
-      if i < n:
-        newlist[int(i)] = list[int(i)]
-      if i > n:
-        newlist[int(i - 1.0)] = list[int(i)]
-      i = i + 1.0
-    
-
-    list = None
-  else:
-    newlist = None
-
-  return newlist
-
-def lGetCharacterRef(list, i):
-  return list.string[int(i)]
-
-def lRemoveCharacterRef(list, i):
-  list.string = lRemoveCharacter(list.string, i)
 
 def Negate(x):
   return  -x
@@ -5643,117 +4749,121 @@ def charToUpperCase(character):
 
 def charIsUpperCase(character):
 
-  isUpper = False
+  isUpper = True
   if character == 'A':
-    isUpper = True
+    pass
   elif character == 'B':
-    isUpper = True
+    pass
   elif character == 'C':
-    isUpper = True
+    pass
   elif character == 'D':
-    isUpper = True
+    pass
   elif character == 'E':
-    isUpper = True
+    pass
   elif character == 'F':
-    isUpper = True
+    pass
   elif character == 'G':
-    isUpper = True
+    pass
   elif character == 'H':
-    isUpper = True
+    pass
   elif character == 'I':
-    isUpper = True
+    pass
   elif character == 'J':
-    isUpper = True
+    pass
   elif character == 'K':
-    isUpper = True
+    pass
   elif character == 'L':
-    isUpper = True
+    pass
   elif character == 'M':
-    isUpper = True
+    pass
   elif character == 'N':
-    isUpper = True
+    pass
   elif character == 'O':
-    isUpper = True
+    pass
   elif character == 'P':
-    isUpper = True
+    pass
   elif character == 'Q':
-    isUpper = True
+    pass
   elif character == 'R':
-    isUpper = True
+    pass
   elif character == 'S':
-    isUpper = True
+    pass
   elif character == 'T':
-    isUpper = True
+    pass
   elif character == 'U':
-    isUpper = True
+    pass
   elif character == 'V':
-    isUpper = True
+    pass
   elif character == 'W':
-    isUpper = True
+    pass
   elif character == 'X':
-    isUpper = True
+    pass
   elif character == 'Y':
-    isUpper = True
+    pass
   elif character == 'Z':
-    isUpper = True
+    pass
+  else:
+    isUpper = False
 
   return isUpper
 
 def charIsLowerCase(character):
 
-  isLower = False
+  isLower = True
   if character == 'a':
-    isLower = True
+    pass
   elif character == 'b':
-    isLower = True
+    pass
   elif character == 'c':
-    isLower = True
+    pass
   elif character == 'd':
-    isLower = True
+    pass
   elif character == 'e':
-    isLower = True
+    pass
   elif character == 'f':
-    isLower = True
+    pass
   elif character == 'g':
-    isLower = True
+    pass
   elif character == 'h':
-    isLower = True
+    pass
   elif character == 'i':
-    isLower = True
+    pass
   elif character == 'j':
-    isLower = True
+    pass
   elif character == 'k':
-    isLower = True
+    pass
   elif character == 'l':
-    isLower = True
+    pass
   elif character == 'm':
-    isLower = True
+    pass
   elif character == 'n':
-    isLower = True
+    pass
   elif character == 'o':
-    isLower = True
+    pass
   elif character == 'p':
-    isLower = True
+    pass
   elif character == 'q':
-    isLower = True
+    pass
   elif character == 'r':
-    isLower = True
+    pass
   elif character == 's':
-    isLower = True
+    pass
   elif character == 't':
-    isLower = True
+    pass
   elif character == 'u':
-    isLower = True
+    pass
   elif character == 'v':
-    isLower = True
+    pass
   elif character == 'w':
-    isLower = True
+    pass
   elif character == 'x':
-    isLower = True
+    pass
   elif character == 'y':
-    isLower = True
+    pass
   elif character == 'z':
-    isLower = True
+    pass
+  else:
+    isLower = False
 
   return isLower
 
@@ -5762,111 +4872,117 @@ def charIsLetter(character):
 
 def charIsNumber(character):
 
-  isNumberx = False
+  isNumberx = True
   if character == '0':
-    isNumberx = True
+    pass
   elif character == '1':
-    isNumberx = True
+    pass
   elif character == '2':
-    isNumberx = True
+    pass
   elif character == '3':
-    isNumberx = True
+    pass
   elif character == '4':
-    isNumberx = True
+    pass
   elif character == '5':
-    isNumberx = True
+    pass
   elif character == '6':
-    isNumberx = True
+    pass
   elif character == '7':
-    isNumberx = True
+    pass
   elif character == '8':
-    isNumberx = True
+    pass
   elif character == '9':
-    isNumberx = True
+    pass
+  else:
+    isNumberx = False
 
   return isNumberx
 
 def charIsWhiteSpace(character):
 
-  isWhiteSpacex = False
+  isWhiteSpacex = True
   if character == ' ':
-    isWhiteSpacex = True
+    pass
   elif character == '\t':
-    isWhiteSpacex = True
+    pass
   elif character == '\n':
-    isWhiteSpacex = True
+    pass
   elif character == '\r':
-    isWhiteSpacex = True
+    pass
+  else:
+    isWhiteSpacex = False
 
   return isWhiteSpacex
 
 def charIsSymbol(character):
 
-  isSymbolx = False
+  isSymbolx = True
   if character == '!':
-    isSymbolx = True
+    pass
   elif character == '\"':
-    isSymbolx = True
+    pass
   elif character == '#':
-    isSymbolx = True
+    pass
   elif character == '$':
-    isSymbolx = True
+    pass
   elif character == '%':
-    isSymbolx = True
+    pass
   elif character == '&':
-    isSymbolx = True
+    pass
   elif character == '\'':
-    isSymbolx = True
+    pass
   elif character == '(':
-    isSymbolx = True
+    pass
   elif character == ')':
-    isSymbolx = True
+    pass
   elif character == '*':
-    isSymbolx = True
+    pass
   elif character == '+':
-    isSymbolx = True
+    pass
   elif character == ',':
-    isSymbolx = True
+    pass
   elif character == '-':
-    isSymbolx = True
+    pass
   elif character == '.':
-    isSymbolx = True
+    pass
   elif character == '/':
-    isSymbolx = True
+    pass
   elif character == ':':
-    isSymbolx = True
+    pass
   elif character == ';':
-    isSymbolx = True
+    pass
   elif character == '<':
-    isSymbolx = True
+    pass
   elif character == '=':
-    isSymbolx = True
+    pass
   elif character == '>':
-    isSymbolx = True
+    pass
   elif character == '?':
-    isSymbolx = True
+    pass
   elif character == '@':
-    isSymbolx = True
+    pass
   elif character == '[':
-    isSymbolx = True
+    pass
   elif character == '\\':
-    isSymbolx = True
+    pass
   elif character == ']':
-    isSymbolx = True
+    pass
   elif character == '^':
-    isSymbolx = True
+    pass
   elif character == '_':
-    isSymbolx = True
+    pass
   elif character == '`':
-    isSymbolx = True
+    pass
   elif character == '{':
-    isSymbolx = True
+    pass
   elif character == '|':
-    isSymbolx = True
+    pass
   elif character == '}':
-    isSymbolx = True
+    pass
   elif character == '~':
-    isSymbolx = True
+    pass
+  else:
+    isSymbolx = False
 
   return isSymbolx
 
@@ -5876,5 +4992,53 @@ def charCharacterIsBefore(a, b):
   bd = ord(b)
 
   return ad < bd
+
+def charDecimalDigitToCharacter(digit):
+  if digit == 1.0:
+    c = '1'
+  elif digit == 2.0:
+    c = '2'
+  elif digit == 3.0:
+    c = '3'
+  elif digit == 4.0:
+    c = '4'
+  elif digit == 5.0:
+    c = '5'
+  elif digit == 6.0:
+    c = '6'
+  elif digit == 7.0:
+    c = '7'
+  elif digit == 8.0:
+    c = '8'
+  elif digit == 9.0:
+    c = '9'
+  else:
+    c = '0'
+  return c
+
+def charCharacterToDecimalDigit(c):
+
+  if c == '1':
+    digit = 1.0
+  elif c == '2':
+    digit = 2.0
+  elif c == '3':
+    digit = 3.0
+  elif c == '4':
+    digit = 4.0
+  elif c == '5':
+    digit = 5.0
+  elif c == '6':
+    digit = 6.0
+  elif c == '7':
+    digit = 7.0
+  elif c == '8':
+    digit = 8.0
+  elif c == '9':
+    digit = 9.0
+  else:
+    digit = 0.0
+
+  return digit
 
 

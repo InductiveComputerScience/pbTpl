@@ -194,7 +194,27 @@ static public class Node{
 		return success;
 	}
 
-	public static boolean GenerateDocument(char [] template, Element data, StringReference document, StringReference errorMessage){
+	public static boolean GenerateDocument(char [] template, char [] json, StringReference document, StringReference errorMessage){
+		ElementReference data;
+		StringArrayReference errorMessages;
+		boolean success;
+
+		data = new ElementReference();
+		errorMessages = new StringArrayReference();
+
+		success = ReadJSON(json, data, errorMessages);
+
+		if(success){
+			success = GenerateDocumentBasedOnElement(template, data.element, document, errorMessage);
+		}else{
+			errorMessage.string = JoinStringsWithSeparator(errorMessages.stringArray, ", ".toCharArray());
+			FreeStringArrayReference(errorMessages);
+		}
+
+		return success;
+	}
+
+	public static boolean GenerateDocumentBasedOnElement(char [] template, Element data, StringReference document, StringReference errorMessage){
 		LinkedListCharacters ll;
 		boolean success;
 		LinkedListStrings tokens;
@@ -277,7 +297,7 @@ static public class Node{
 				}else{
 					success = false;
 					errorMessage.string = "Key for printing not found in JSON object: ".toCharArray();
-					errorMessage.string = sConcatenateString(errorMessage.string, n.p1);
+					errorMessage.string = ConcatenateString(errorMessage.string, n.p1);
 				}
 			}else{
 				success = false;
@@ -341,7 +361,7 @@ static public class Node{
 			}else{
 				success = false;
 				errorMessage.string = "Key for if not found in JSON object: ".toCharArray();
-				errorMessage.string = sConcatenateString(errorMessage.string, n.p1);
+				errorMessage.string = ConcatenateString(errorMessage.string, n.p1);
 			}
 		}else{
 			success = false;
@@ -385,7 +405,7 @@ static public class Node{
 			}else{
 				success = false;
 				errorMessage.string = "Key for foreach not found in JSON object: ".toCharArray();
-				errorMessage.string = sConcatenateString(errorMessage.string, n.p2);
+				errorMessage.string = ConcatenateString(errorMessage.string, n.p2);
 			}
 		}else{
 			success = false;
@@ -601,8 +621,8 @@ static public class Node{
 		}else if(token[0] != '{'){
 			isText = true;
 		}else{
-			command = strSubstring(token, 1d, token.length - 1d);
-			parts = sSplitByCharacter(command, ' ');
+			command = Substring(token, 1d, token.length - 1d);
+			parts = SplitByCharacter(command, ' ');
 
 			if(command.length > 0d){
 				if(StringsEqual(parts[0].string, "use".toCharArray())){
@@ -667,12 +687,12 @@ static public class Node{
 
 		if(isText){
 			node.type = "text".toCharArray();
-			node.p1 = sReplaceString(token, "\\{print ".toCharArray(), "{print ".toCharArray());
-			node.p1 = sReplaceString(node.p1, "\\{use ".toCharArray(), "{use ".toCharArray());
-			node.p1 = sReplaceString(node.p1, "\\{if ".toCharArray(), "{if ".toCharArray());
-			node.p1 = sReplaceString(node.p1, "\\{end}".toCharArray(), "{end}".toCharArray());
-			node.p1 = sReplaceString(node.p1, "\\{foreach ".toCharArray(), "{foreach ".toCharArray());
-			node.p1 = sReplaceString(node.p1, "\\{else}".toCharArray(), "{else}".toCharArray());
+			node.p1 = ReplaceString(token, "\\{print ".toCharArray(), "{print ".toCharArray());
+			node.p1 = ReplaceString(node.p1, "\\{use ".toCharArray(), "{use ".toCharArray());
+			node.p1 = ReplaceString(node.p1, "\\{if ".toCharArray(), "{if ".toCharArray());
+			node.p1 = ReplaceString(node.p1, "\\{end}".toCharArray(), "{end}".toCharArray());
+			node.p1 = ReplaceString(node.p1, "\\{foreach ".toCharArray(), "{foreach ".toCharArray());
+			node.p1 = ReplaceString(node.p1, "\\{else}".toCharArray(), "{else}".toCharArray());
 		}
 
 		return success;
@@ -692,8 +712,28 @@ static public class Node{
 		testGenerateDocument5(failures);
 		testGenerateDocument6(failures);
 		testGenerateDocument7(failures);
+		testGenerateDocument8(failures);
 
 		return failures.numberValue;
+	}
+
+	public static void testGenerateDocument8(NumberReference failures){
+		StringReference document, errorMessage;
+		boolean success;
+		char [] template, json;
+
+		document = new StringReference();
+		errorMessage = new StringReference();
+
+		template = "This is a test: {print b} {foreach x in a}{print x}{end}.".toCharArray();
+		json = "{\"a\": [1, 2, 3], \"b\": 4}".toCharArray();
+		success = GenerateDocument(template, json, document, errorMessage);
+
+		if(success){
+			AssertStringEquals("This is a test: 4 123.".toCharArray(), document.string, failures);
+		}
+
+		AssertTrue(success, failures);
 	}
 
 	public static void testTokenGeneration(NumberReference failures){
@@ -806,7 +846,7 @@ static public class Node{
 		AssertTrue(success, failures);
 
 		if(success){
-			success = GenerateDocument(template, data.element, document, errorMessage);
+			success = GenerateDocumentBasedOnElement(template, data.element, document, errorMessage);
 
 			AssertTrue(success, failures);
 
@@ -833,7 +873,7 @@ static public class Node{
 		AssertTrue(success, failures);
 
 		if(success){
-			success = GenerateDocument(template, data.element, document, errorMessageRef);
+			success = GenerateDocumentBasedOnElement(template, data.element, document, errorMessageRef);
 
 			AssertFalse(success, failures);
 
@@ -1060,9 +1100,9 @@ static public class StringElementMap{
 		StringReference stringReference, tokenReference;
 		NumberReference stringLength;
 		boolean success;
-		lLinkedListStrings ll;
+		LinkedListStrings ll;
 
-		ll = lCreateLinkedListString();
+		ll = CreateLinkedListString();
 		success = true;
 
 		stringLength = new NumberReference();
@@ -1072,39 +1112,39 @@ static public class StringElementMap{
 			c = json[(int)(i)];
 
 			if(c == '{'){
-				lLinkedListAddString(ll, "{".toCharArray());
+				LinkedListAddString(ll, "{".toCharArray());
 				i = i + 1d;
 			}else if(c == '}'){
-				lLinkedListAddString(ll, "}".toCharArray());
+				LinkedListAddString(ll, "}".toCharArray());
 				i = i + 1d;
 			}else if(c == '['){
-				lLinkedListAddString(ll, "[".toCharArray());
+				LinkedListAddString(ll, "[".toCharArray());
 				i = i + 1d;
 			}else if(c == ']'){
-				lLinkedListAddString(ll, "]".toCharArray());
+				LinkedListAddString(ll, "]".toCharArray());
 				i = i + 1d;
 			}else if(c == ':'){
-				lLinkedListAddString(ll, ":".toCharArray());
+				LinkedListAddString(ll, ":".toCharArray());
 				i = i + 1d;
 			}else if(c == ','){
-				lLinkedListAddString(ll, ",".toCharArray());
+				LinkedListAddString(ll, ",".toCharArray());
 				i = i + 1d;
 			}else if(c == 'f'){
 				success = GetJSONPrimitiveName(json, i, errorMessages, "false".toCharArray(), tokenReference);
 				if(success){
-					lLinkedListAddString(ll, "false".toCharArray());
+					LinkedListAddString(ll, "false".toCharArray());
 					i = i + "false".toCharArray().length;
 				}
 			}else if(c == 't'){
 				success = GetJSONPrimitiveName(json, i, errorMessages, "true".toCharArray(), tokenReference);
 				if(success){
-					lLinkedListAddString(ll, "true".toCharArray());
+					LinkedListAddString(ll, "true".toCharArray());
 					i = i + "true".toCharArray().length;
 				}
 			}else if(c == 'n'){
 				success = GetJSONPrimitiveName(json, i, errorMessages, "null".toCharArray(), tokenReference);
 				if(success){
-					lLinkedListAddString(ll, "null".toCharArray());
+					LinkedListAddString(ll, "null".toCharArray());
 					i = i + "null".toCharArray().length;
 				}
 			}else if(c == ' ' || c == '\n' || c == '\t' || c == '\r'){
@@ -1113,28 +1153,28 @@ static public class StringElementMap{
 			}else if(c == '\"'){
 				success = GetJSONString(json, i, tokenReference, stringLength, errorMessages);
 				if(success){
-					lLinkedListAddString(ll, tokenReference.string);
+					LinkedListAddString(ll, tokenReference.string);
 					i = i + stringLength.numberValue;
 				}
 			}else if(IsJSONNumberCharacter(c)){
 				success = GetJSONNumberToken(json, i, tokenReference, errorMessages);
 				if(success){
-					lLinkedListAddString(ll, tokenReference.string);
+					LinkedListAddString(ll, tokenReference.string);
 					i = i + tokenReference.string.length;
 				}
 			}else{
-				str = strConcatenateCharacter("Invalid start of Token: ".toCharArray(), c);
+				str = ConcatenateCharacter("Invalid start of Token: ".toCharArray(), c);
 				stringReference = CreateStringReference(str);
-				lAddStringRef(errorMessages, stringReference);
+				AddStringRef(errorMessages, stringReference);
 				i = i + 1d;
 				success = false;
 			}
 		}
 
 		if(success){
-			lLinkedListAddString(ll, "<end>".toCharArray());
-			tokensReference.stringArray = lLinkedListStringsToArray(ll);
-			lFreeLinkedListString(ll);
+			LinkedListAddString(ll, "<end>".toCharArray());
+			tokensReference.stringArray = LinkedListStringsToArray(ll);
+			FreeLinkedListString(ll);
 		}
 
 		return success;
@@ -1157,7 +1197,7 @@ static public class StringElementMap{
 			}
 		}
 
-		numberString = strSubstring(json, start, end);
+		numberString = Substring(json, start, end);
 
 		success = IsValidJSONNumber(numberString, errorMessages);
 
@@ -1181,7 +1221,7 @@ static public class StringElementMap{
 			success = IsValidJSONNumberAfterSign(n, i, errorMessages);
 		}else{
 			success = false;
-			lAddStringRef(errorMessages, CreateStringReference("Number must contain at least one digit.".toCharArray()));
+			AddStringRef(errorMessages, CreateStringReference("Number must contain at least one digit.".toCharArray()));
 		}
 
 		return success;
@@ -1207,7 +1247,7 @@ static public class StringElementMap{
 			}
 		}else{
 			success = false;
-			lAddStringRef(errorMessages, CreateStringReference("A number must start with 0-9 (after the optional sign).".toCharArray()));
+			AddStringRef(errorMessages, CreateStringReference("A number must start with 0-9 (after the optional sign).".toCharArray()));
 		}
 
 		return success;
@@ -1250,11 +1290,11 @@ static public class StringElementMap{
 					}
 				}else{
 					success = false;
-					lAddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point.".toCharArray()));
+					AddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point.".toCharArray()));
 				}
 			}else{
 				success = false;
-				lAddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point.".toCharArray()));
+				AddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point.".toCharArray()));
 			}
 		}
 
@@ -1264,20 +1304,20 @@ static public class StringElementMap{
 				success = IsValidJSONNumberFromExponent(n, i, errorMessages);
 			}else{
 				success = false;
-				lAddStringRef(errorMessages, CreateStringReference("Expected e or E.".toCharArray()));
+				AddStringRef(errorMessages, CreateStringReference("Expected e or E.".toCharArray()));
 			}
 		}else if(i == n.length && success){
 			/* If number with decimal point.*/
 			success = true;
 		}else{
 			success = false;
-			lAddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point.".toCharArray()));
+			AddStringRef(errorMessages, CreateStringReference("There must be numbers after the decimal point.".toCharArray()));
 		}
 
 		if(wasDotAndOrE){
 		}else{
 			success = false;
-			lAddStringRef(errorMessages, CreateStringReference("Exprected decimal point or e or E.".toCharArray()));
+			AddStringRef(errorMessages, CreateStringReference("Exprected decimal point or e or E.".toCharArray()));
 		}
 
 		return success;
@@ -1304,19 +1344,19 @@ static public class StringElementMap{
 						success = true;
 					}else{
 						success = false;
-						lAddStringRef(errorMessages, CreateStringReference("There was characters following the exponent.".toCharArray()));
+						AddStringRef(errorMessages, CreateStringReference("There was characters following the exponent.".toCharArray()));
 					}
 				}else{
 					success = false;
-					lAddStringRef(errorMessages, CreateStringReference("There must be a digit following the optional exponent sign.".toCharArray()));
+					AddStringRef(errorMessages, CreateStringReference("There must be a digit following the optional exponent sign.".toCharArray()));
 				}
 			}else{
 				success = false;
-				lAddStringRef(errorMessages, CreateStringReference("There must be a digit following optional the exponent sign.".toCharArray()));
+				AddStringRef(errorMessages, CreateStringReference("There must be a digit following optional the exponent sign.".toCharArray()));
 			}
 		}else{
 			success = false;
-			lAddStringRef(errorMessages, CreateStringReference("There must be a sign or a digit following e or E.".toCharArray()));
+			AddStringRef(errorMessages, CreateStringReference("There must be a sign or a digit following e or E.".toCharArray()));
 		}
 
 		return success;
@@ -1361,12 +1401,12 @@ static public class StringElementMap{
 				}
 			}else{
 				str = "".toCharArray();
-				str = strConcatenateString(str, "Primitive invalid: ".toCharArray());
-				str = strAppendCharacter(str, c);
-				str = strAppendString(str, " vs ".toCharArray());
-				str = strAppendCharacter(str, p);
+				str = ConcatenateString(str, "Primitive invalid: ".toCharArray());
+				str = AppendCharacter(str, c);
+				str = AppendString(str, " vs ".toCharArray());
+				str = AppendCharacter(str, p);
 
-				lAddStringRef(errorMessages, CreateStringReference(str));
+				AddStringRef(errorMessages, CreateStringReference(str));
 				done = true;
 				success = false;
 			}
@@ -1383,7 +1423,7 @@ static public class StringElementMap{
 				token = "null".toCharArray();
 			}
 		}else{
-			lAddStringRef(errorMessages, CreateStringReference("Primitive invalid".toCharArray()));
+			AddStringRef(errorMessages, CreateStringReference("Primitive invalid".toCharArray()));
 			success = false;
 		}
 
@@ -1460,7 +1500,7 @@ static public class StringElementMap{
 			tokenReference.string = string;
 			success = true;
 		}else{
-			lAddStringRef(errorMessages, CreateStringReference("End of string was not found.".toCharArray()));
+			AddStringRef(errorMessages, CreateStringReference("End of string was not found.".toCharArray()));
 			success = false;
 		}
 
@@ -1503,22 +1543,22 @@ static public class StringElementMap{
 									if(nCharacterIsNumberCharacterInBase(c, 16d) || c == 'a' || c == 'b' || c == 'c' || c == 'd' || c == 'e' || c == 'f'){
 									}else{
 										success = false;
-										lAddStringRef(errorMessages, CreateStringReference("\\u must be followed by four hexadecimal digits.".toCharArray()));
+										AddStringRef(errorMessages, CreateStringReference("\\u must be followed by four hexadecimal digits.".toCharArray()));
 									}
 								}
 								characterCount.numberValue = characterCount.numberValue + 1d;
 								i = i + 4d;
 							}else{
 								success = false;
-								lAddStringRef(errorMessages, CreateStringReference("\\u must be followed by four characters.".toCharArray()));
+								AddStringRef(errorMessages, CreateStringReference("\\u must be followed by four characters.".toCharArray()));
 							}
 						}else{
 							success = false;
-							lAddStringRef(errorMessages, CreateStringReference("Escaped character invalid.".toCharArray()));
+							AddStringRef(errorMessages, CreateStringReference("Escaped character invalid.".toCharArray()));
 						}
 					}else{
 						success = false;
-						lAddStringRef(errorMessages, CreateStringReference("There must be at least two character after string escape.".toCharArray()));
+						AddStringRef(errorMessages, CreateStringReference("There must be at least two character after string escape.".toCharArray()));
 					}
 				}else if(json[(int)(i)] == '\"'){
 					characterCount.numberValue = characterCount.numberValue + 1d;
@@ -1528,7 +1568,7 @@ static public class StringElementMap{
 				}
 			}else{
 				success = false;
-				lAddStringRef(errorMessages, CreateStringReference("Unicode code points 0-31 not allowed in JSON string.".toCharArray()));
+				AddStringRef(errorMessages, CreateStringReference("Unicode code points 0-31 not allowed in JSON string.".toCharArray()));
 			}
 		}
 
@@ -1536,7 +1576,7 @@ static public class StringElementMap{
 			stringLengthReference.numberValue = i - start;
 		}else{
 			success = false;
-			lAddStringRef(errorMessages, CreateStringReference("String must end with \".".toCharArray()));
+			AddStringRef(errorMessages, CreateStringReference("String must end with \".".toCharArray()));
 		}
 
 		return success;
@@ -1709,12 +1749,16 @@ static public class StringElementMap{
 		double length;
 		char [] a;
 
-		if(abs(element.number) >= pow(10d, 15d) || abs(element.number) <= pow(10d, -15d)){
-			a = nCreateStringScientificNotationDecimalFromNumber(element.number);
-			length = a.length;
+		if(element.number != 0d){
+			if(abs(element.number) >= pow(10d, 15d) || abs(element.number) <= pow(10d, -15d)){
+				a = nCreateStringScientificNotationDecimalFromNumber(element.number);
+				length = a.length;
+			}else{
+				a = nCreateStringDecimalFromNumber(element.number);
+				length = a.length;
+			}
 		}else{
-			a = nCreateStringDecimalFromNumber(element.number);
-			length = a.length;
+			length = 1d;
 		}
 
 		return length;
@@ -1882,7 +1926,7 @@ static public class StringElementMap{
 		}else if(StringsEqual(element.type, "number".toCharArray())){
 			WriteNumber(element, result, index);
 		}else if(StringsEqual(element.type, "null".toCharArray())){
-			strWriteStringToStingStream(result, index, "null".toCharArray());
+			WriteStringToStingStream(result, index, "null".toCharArray());
 		}else if(StringsEqual(element.type, "boolean".toCharArray())){
 			WriteBooleanValue(element, result, index);
 		}
@@ -1892,22 +1936,26 @@ static public class StringElementMap{
 
 	public static void WriteBooleanValue(Element element, char [] result, NumberReference index){
 		if(element.booleanValue){
-			strWriteStringToStingStream(result, index, "true".toCharArray());
+			WriteStringToStingStream(result, index, "true".toCharArray());
 		}else{
-			strWriteStringToStingStream(result, index, "false".toCharArray());
+			WriteStringToStingStream(result, index, "false".toCharArray());
 		}
 	}
 
 	public static void WriteNumber(Element element, char [] result, NumberReference index){
 		char [] numberString;
 
-		if(abs(element.number) >= pow(10d, 15d) || abs(element.number) <= pow(10d, -15d)){
-			numberString = nCreateStringScientificNotationDecimalFromNumber(element.number);
+		if(element.number != 0d){
+			if(abs(element.number) >= pow(10d, 15d) || abs(element.number) <= pow(10d, -15d)){
+				numberString = nCreateStringScientificNotationDecimalFromNumber(element.number);
+			}else{
+				numberString = nCreateStringDecimalFromNumber(element.number);
+			}
 		}else{
 			numberString = nCreateStringDecimalFromNumber(element.number);
 		}
 
-		strWriteStringToStingStream(result, index, numberString);
+		WriteStringToStingStream(result, index, numberString);
 	}
 
 	public static void WriteArray(Element element, char [] result, NumberReference index){
@@ -1915,27 +1963,27 @@ static public class StringElementMap{
 		Element arrayElement;
 		double i;
 
-		strWriteStringToStingStream(result, index, "[".toCharArray());
+		WriteStringToStingStream(result, index, "[".toCharArray());
 
 		for(i = 0d; i < element.array.length; i = i + 1d){
 			arrayElement = element.array[(int)(i)];
 
 			s = WriteJSON(arrayElement);
-			strWriteStringToStingStream(result, index, s);
+			WriteStringToStingStream(result, index, s);
 
 			if(i + 1d != element.array.length){
-				strWriteStringToStingStream(result, index, ",".toCharArray());
+				WriteStringToStingStream(result, index, ",".toCharArray());
 			}
 		}
 
-		strWriteStringToStingStream(result, index, "]".toCharArray());
+		WriteStringToStingStream(result, index, "]".toCharArray());
 	}
 
 	public static void WriteString(Element element, char [] result, NumberReference index){
-		strWriteStringToStingStream(result, index, "\"".toCharArray());
+		WriteStringToStingStream(result, index, "\"".toCharArray());
 		element.string = JSONEscapeString(element.string);
-		strWriteStringToStingStream(result, index, element.string);
-		strWriteStringToStingStream(result, index, "\"".toCharArray());
+		WriteStringToStingStream(result, index, element.string);
+		WriteStringToStingStream(result, index, "\"".toCharArray());
 	}
 
 	public static char [] JSONEscapeString(char [] string){
@@ -1952,9 +2000,9 @@ static public class StringElementMap{
 		for(i = 0d; i < string.length; i = i + 1d){
 			if(JSONMustBeEscaped(string[(int)(i)], lettersReference)){
 				escaped = JSONEscapeCharacter(string[(int)(i)]);
-				strWriteStringToStingStream(ns, index, escaped);
+				WriteStringToStingStream(ns, index, escaped);
 			}else{
-				strWriteCharacterToStingStream(ns, index, string[(int)(i)]);
+				WriteCharacterToStingStream(ns, index, string[(int)(i)]);
 			}
 		}
 
@@ -2090,7 +2138,7 @@ static public class StringElementMap{
 		StringArrayReference keys;
 		Element objectElement;
 
-		strWriteStringToStingStream(result, index, "{".toCharArray());
+		WriteStringToStingStream(result, index, "{".toCharArray());
 
 		keys = GetStringElementMapKeySet(element.object);
 		for(i = 0d; i < keys.stringArray.length; i = i + 1d){
@@ -2098,20 +2146,20 @@ static public class StringElementMap{
 			key = JSONEscapeString(key);
 			objectElement = GetObjectValue(element.object, key);
 
-			strWriteStringToStingStream(result, index, "\"".toCharArray());
-			strWriteStringToStingStream(result, index, key);
-			strWriteStringToStingStream(result, index, "\"".toCharArray());
-			strWriteStringToStingStream(result, index, ":".toCharArray());
+			WriteStringToStingStream(result, index, "\"".toCharArray());
+			WriteStringToStingStream(result, index, key);
+			WriteStringToStingStream(result, index, "\"".toCharArray());
+			WriteStringToStingStream(result, index, ":".toCharArray());
 
 			s = WriteJSON(objectElement);
-			strWriteStringToStingStream(result, index, s);
+			WriteStringToStingStream(result, index, s);
 
 			if(i + 1d != keys.stringArray.length){
-				strWriteStringToStingStream(result, index, ",".toCharArray());
+				WriteStringToStingStream(result, index, ",".toCharArray());
 			}
 		}
 
-		strWriteStringToStingStream(result, index, "}".toCharArray());
+		WriteStringToStingStream(result, index, "}".toCharArray());
 	}
 
 	public static boolean ReadJSON(char [] string, ElementReference elementReference, StringArrayReference errorMessages){
@@ -2166,21 +2214,21 @@ static public class StringElementMap{
 			elementReference.element = CreateNumberElement(stringToDecimalResult);
 			i.numberValue = i.numberValue + 1d;
 		}else if(token[0] == '\"'){
-			substr = strSubstring(token, 1d, token.length - 1d);
+			substr = Substring(token, 1d, token.length - 1d);
 			elementReference.element = CreateStringElement(substr);
 			i.numberValue = i.numberValue + 1d;
 		}else{
 			str = "".toCharArray();
-			str = strConcatenateString(str, "Invalid token first in value: ".toCharArray());
-			str = strAppendString(str, token);
-			lAddStringRef(errorMessages, CreateStringReference(str));
+			str = ConcatenateString(str, "Invalid token first in value: ".toCharArray());
+			str = AppendString(str, token);
+			AddStringRef(errorMessages, CreateStringReference(str));
 			success = false;
 		}
 
 		if(success && depth == 0d){
 			if(StringsEqual(tokens[(int)(i.numberValue)].string, "<end>".toCharArray())){
 			}else{
-				lAddStringRef(errorMessages, CreateStringReference("The outer value cannot have any tokens following it.".toCharArray()));
+				AddStringRef(errorMessages, CreateStringReference("The outer value cannot have any tokens following it.".toCharArray()));
 				success = false;
 			}
 		}
@@ -2195,9 +2243,9 @@ static public class StringElementMap{
 		char [] keystring, str;
 		ElementReference valueReference;
 		LinkedListElements values;
-		lLinkedListStrings keys;
+		LinkedListStrings keys;
 
-		keys = lCreateLinkedListString();
+		keys = CreateLinkedListString();
 		values = CreateLinkedListElements();
 		element = CreateObjectElement(0d);
 		valueReference = new ElementReference();
@@ -2218,9 +2266,9 @@ static public class StringElementMap{
 						success = GetJSONValueRecursive(tokens, i, depth, valueReference, errorMessages);
 
 						if(success){
-							keystring = strSubstring(key, 1d, key.length - 1d);
+							keystring = Substring(key, 1d, key.length - 1d);
 							value = valueReference.element;
-							lLinkedListAddString(keys, keystring);
+							LinkedListAddString(keys, keystring);
 							LinkedListAddElement(values, value);
 
 							comma = tokens[(int)(i.numberValue)].string;
@@ -2233,15 +2281,15 @@ static public class StringElementMap{
 						}
 					}else{
 						str = "".toCharArray();
-						str = strConcatenateString(str, "Expected colon after key in object: ".toCharArray());
-						str = strAppendString(str, colon);
-						lAddStringRef(errorMessages, CreateStringReference(str));
+						str = ConcatenateString(str, "Expected colon after key in object: ".toCharArray());
+						str = AppendString(str, colon);
+						AddStringRef(errorMessages, CreateStringReference(str));
 
 						success = false;
 						done = true;
 					}
 				}else{
-					lAddStringRef(errorMessages, CreateStringReference("Expected string as key in object.".toCharArray()));
+					AddStringRef(errorMessages, CreateStringReference("Expected string as key in object.".toCharArray()));
 
 					done = true;
 					success = false;
@@ -2256,17 +2304,17 @@ static public class StringElementMap{
 				/* OK*/
 				delete(element.object.stringListRef.stringArray);
 				delete(element.object.elementListRef.array);
-				element.object.stringListRef.stringArray = lLinkedListStringsToArray(keys);
+				element.object.stringListRef.stringArray = LinkedListStringsToArray(keys);
 				element.object.elementListRef.array = LinkedListElementsToArray(values);
 				elementReference.element = element;
 				i.numberValue = i.numberValue + 1d;
 			}else{
-				lAddStringRef(errorMessages, CreateStringReference("Expected close curly brackets at end of object value.".toCharArray()));
+				AddStringRef(errorMessages, CreateStringReference("Expected close curly brackets at end of object value.".toCharArray()));
 				success = false;
 			}
 		}
 
-		lFreeLinkedListString(keys);
+		FreeLinkedListString(keys);
 		FreeLinkedListElements(values);
 		delete(valueReference);
 
@@ -2317,7 +2365,7 @@ static public class StringElementMap{
 			delete(element.array);
 			element.array = LinkedListElementsToArray(elements);
 		}else{
-			lAddStringRef(errorMessages, CreateStringReference("Expected close square bracket at end of array.".toCharArray()));
+			AddStringRef(errorMessages, CreateStringReference("Expected close square bracket at end of array.".toCharArray()));
 			success = false;
 		}
 
@@ -2365,7 +2413,7 @@ static public class StringElementMap{
 	}
 
 	public static void PutStringElementMap(StringElementMap stringElementMap, char [] keystring, Element value){
-		lAddStringRef(stringElementMap.stringListRef, CreateStringReference(keystring));
+		AddStringRef(stringElementMap.stringListRef, CreateStringReference(keystring));
 		AddElementRef(stringElementMap.elementListRef, value);
 	}
 
@@ -3461,6 +3509,41 @@ static public class DynamicArrayNumbers{
 		return da;
 	}
 
+	public static double DynamicArrayNumbersIndexOf(DynamicArrayNumbers arr, double n, BooleanReference foundReference){
+		boolean found;
+		double i;
+
+		found = false;
+		for(i = 0d; i < arr.length && !found; i = i + 1d){
+			if(arr.array[(int)(i)] == n){
+				found = true;
+			}
+		}
+		if(!found){
+			i = -1d;
+		}else{
+			i = i - 1d;
+		}
+
+		foundReference.booleanValue = found;
+
+		return i;
+	}
+
+	public static boolean DynamicArrayNumbersIsInArray(DynamicArrayNumbers arr, double n){
+		boolean found;
+		double i;
+
+		found = false;
+		for(i = 0d; i < arr.length && !found; i = i + 1d){
+			if(arr.array[(int)(i)] == n){
+				found = true;
+			}
+		}
+
+		return found;
+	}
+
 	public static char [] AddCharacter(char [] list, char a){
 		char [] newlist;
 		double i;
@@ -3512,7 +3595,7 @@ static public class DynamicArrayNumbers{
 		list.string = RemoveCharacter(list.string, i);
 	}
 
-	public static void sWriteStringToStingStream(char [] stream, NumberReference index, char [] src){
+	public static void WriteStringToStingStream(char [] stream, NumberReference index, char [] src){
 		double i;
 
 		for(i = 0d; i < src.length; i = i + 1d){
@@ -3521,24 +3604,24 @@ static public class DynamicArrayNumbers{
 		index.numberValue = index.numberValue + src.length;
 	}
 
-	public static void sWriteCharacterToStingStream(char [] stream, NumberReference index, char src){
+	public static void WriteCharacterToStingStream(char [] stream, NumberReference index, char src){
 		stream[(int)(index.numberValue)] = src;
 		index.numberValue = index.numberValue + 1d;
 	}
 
-	public static void sWriteBooleanToStingStream(char [] stream, NumberReference index, boolean src){
+	public static void WriteBooleanToStingStream(char [] stream, NumberReference index, boolean src){
 		if(src){
-			sWriteStringToStingStream(stream, index, "true".toCharArray());
+			WriteStringToStingStream(stream, index, "true".toCharArray());
 		}else{
-			sWriteStringToStingStream(stream, index, "false".toCharArray());
+			WriteStringToStingStream(stream, index, "false".toCharArray());
 		}
 	}
 
-	public static boolean sSubstringWithCheck(char [] string, double from, double to, StringReference stringReference){
+	public static boolean SubstringWithCheck(char [] string, double from, double to, StringReference stringReference){
 		boolean success;
 
 		if(from >= 0d && from <= string.length && to >= 0d && to <= string.length && from <= to){
-			stringReference.string = sSubstring(string, from, to);
+			stringReference.string = Substring(string, from, to);
 			success = true;
 		}else{
 			success = false;
@@ -3547,7 +3630,7 @@ static public class DynamicArrayNumbers{
 		return success;
 	}
 
-	public static char [] sSubstring(char [] string, double from, double to){
+	public static char [] Substring(char [] string, double from, double to){
 		char [] n;
 		double i, length;
 
@@ -3562,17 +3645,17 @@ static public class DynamicArrayNumbers{
 		return n;
 	}
 
-	public static char [] sAppendString(char [] s1, char [] s2){
+	public static char [] AppendString(char [] s1, char [] s2){
 		char [] newString;
 
-		newString = sConcatenateString(s1, s2);
+		newString = ConcatenateString(s1, s2);
 
 		delete(s1);
 
 		return newString;
 	}
 
-	public static char [] sConcatenateString(char [] s1, char [] s2){
+	public static char [] ConcatenateString(char [] s1, char [] s2){
 		char [] newString;
 		double i;
 
@@ -3589,17 +3672,17 @@ static public class DynamicArrayNumbers{
 		return newString;
 	}
 
-	public static char [] sAppendCharacter(char [] string, char c){
+	public static char [] AppendCharacter(char [] string, char c){
 		char [] newString;
 
-		newString = sConcatenateCharacter(string, c);
+		newString = ConcatenateCharacter(string, c);
 
 		delete(string);
 
 		return newString;
 	}
 
-	public static char [] sConcatenateCharacter(char [] string, char c){
+	public static char [] ConcatenateCharacter(char [] string, char c){
 		char [] newString;
 		double i;
 		newString = new char [(int)(string.length + 1d)];
@@ -3613,21 +3696,21 @@ static public class DynamicArrayNumbers{
 		return newString;
 	}
 
-	public static StringReference [] sSplitByCharacter(char [] toSplit, char splitBy){
+	public static StringReference [] SplitByCharacter(char [] toSplit, char splitBy){
 		StringReference [] split;
 		char [] stringToSplitBy;
 
 		stringToSplitBy = new char [1];
 		stringToSplitBy[0] = splitBy;
 
-		split = sSplitByString(toSplit, stringToSplitBy);
+		split = SplitByString(toSplit, stringToSplitBy);
 
 		delete(stringToSplitBy);
 
 		return split;
 	}
 
-	public static boolean sIndexOfCharacter(char [] string, char character, NumberReference indexReference){
+	public static boolean IndexOfCharacter(char [] string, char character, NumberReference indexReference){
 		double i;
 		boolean found;
 
@@ -3642,12 +3725,12 @@ static public class DynamicArrayNumbers{
 		return found;
 	}
 
-	public static boolean sSubstringEqualsWithCheck(char [] string, double from, char [] substring, BooleanReference equalsReference){
+	public static boolean SubstringEqualsWithCheck(char [] string, double from, char [] substring, BooleanReference equalsReference){
 		boolean success;
 
 		if(from < string.length){
 			success = true;
-			equalsReference.booleanValue = sSubstringEquals(string, from, substring);
+			equalsReference.booleanValue = SubstringEquals(string, from, substring);
 		}else{
 			success = false;
 		}
@@ -3655,7 +3738,7 @@ static public class DynamicArrayNumbers{
 		return success;
 	}
 
-	public static boolean sSubstringEquals(char [] string, double from, char [] substring){
+	public static boolean SubstringEquals(char [] string, double from, char [] substring){
 		double i;
 		boolean equal;
 
@@ -3673,13 +3756,13 @@ static public class DynamicArrayNumbers{
 		return equal;
 	}
 
-	public static boolean sIndexOfString(char [] string, char [] substring, NumberReference indexReference){
+	public static boolean IndexOfString(char [] string, char [] substring, NumberReference indexReference){
 		double i;
 		boolean found;
 
 		found = false;
 		for(i = 0d; i < string.length - substring.length + 1d && !found; i = i + 1d){
-			if(sSubstringEquals(string, i, substring)){
+			if(SubstringEquals(string, i, substring)){
 				found = true;
 				indexReference.numberValue = i;
 			}
@@ -3688,7 +3771,7 @@ static public class DynamicArrayNumbers{
 		return found;
 	}
 
-	public static boolean sContainsCharacter(char [] string, char character){
+	public static boolean ContainsCharacter(char [] string, char character){
 		double i;
 		boolean found;
 
@@ -3702,11 +3785,11 @@ static public class DynamicArrayNumbers{
 		return found;
 	}
 
-	public static boolean sContainsString(char [] string, char [] substring){
-		return sIndexOfString(string, substring, new NumberReference());
+	public static boolean ContainsString(char [] string, char [] substring){
+		return IndexOfString(string, substring, new NumberReference());
 	}
 
-	public static void sToUpperCase(char [] string){
+	public static void ToUpperCase(char [] string){
 		double i;
 
 		for(i = 0d; i < string.length; i = i + 1d){
@@ -3714,7 +3797,7 @@ static public class DynamicArrayNumbers{
 		}
 	}
 
-	public static void sToLowerCase(char [] string){
+	public static void ToLowerCase(char [] string){
 		double i;
 
 		for(i = 0d; i < string.length; i = i + 1d){
@@ -3722,7 +3805,7 @@ static public class DynamicArrayNumbers{
 		}
 	}
 
-	public static boolean sEqualsIgnoreCase(char [] a, char [] b){
+	public static boolean EqualsIgnoreCase(char [] a, char [] b){
 		boolean equal;
 		double i;
 
@@ -3740,7 +3823,7 @@ static public class DynamicArrayNumbers{
 		return equal;
 	}
 
-	public static char [] sReplaceString(char [] string, char [] toReplace, char [] replaceWith){
+	public static char [] ReplaceString(char [] string, char [] toReplace, char [] replaceWith){
 		char [] result;
 		double i, j;
 		BooleanReference equalsReference;
@@ -3752,7 +3835,7 @@ static public class DynamicArrayNumbers{
 		equalsReference = new BooleanReference();
 
 		for(i = 0d; i < string.length; ){
-			success = sSubstringEqualsWithCheck(string, i, toReplace, equalsReference);
+			success = SubstringEqualsWithCheck(string, i, toReplace, equalsReference);
 			if(success){
 				success = equalsReference.booleanValue;
 			}
@@ -3775,7 +3858,7 @@ static public class DynamicArrayNumbers{
 		return result;
 	}
 
-	public static char [] sReplaceCharacterToNew(char [] string, char toReplace, char replaceWith){
+	public static char [] ReplaceCharacterToNew(char [] string, char toReplace, char replaceWith){
 		char [] result;
 		double i;
 
@@ -3792,7 +3875,7 @@ static public class DynamicArrayNumbers{
 		return result;
 	}
 
-	public static void sReplaceCharacter(char [] string, char toReplace, char replaceWith){
+	public static void ReplaceCharacter(char [] string, char toReplace, char replaceWith){
 		double i;
 
 		for(i = 0d; i < string.length; i = i + 1d){
@@ -3802,7 +3885,7 @@ static public class DynamicArrayNumbers{
 		}
 	}
 
-	public static char [] sTrim(char [] string){
+	public static char [] Trim(char [] string){
 		char [] result;
 		double i, lastWhitespaceLocationStart, lastWhitespaceLocationEnd;
 		boolean firstNonWhitespaceFound;
@@ -3830,7 +3913,7 @@ static public class DynamicArrayNumbers{
 		}
 
 		if(lastWhitespaceLocationStart < lastWhitespaceLocationEnd){
-			result = sSubstring(string, lastWhitespaceLocationStart + 1d, lastWhitespaceLocationEnd);
+			result = Substring(string, lastWhitespaceLocationStart + 1d, lastWhitespaceLocationEnd);
 		}else{
 			result = new char [0];
 		}
@@ -3838,29 +3921,29 @@ static public class DynamicArrayNumbers{
 		return result;
 	}
 
-	public static boolean sStartsWith(char [] string, char [] start){
+	public static boolean StartsWith(char [] string, char [] start){
 		boolean startsWithString;
 
 		startsWithString = false;
 		if(string.length >= start.length){
-			startsWithString = sSubstringEquals(string, 0d, start);
+			startsWithString = SubstringEquals(string, 0d, start);
 		}
 
 		return startsWithString;
 	}
 
-	public static boolean sEndsWith(char [] string, char [] end){
+	public static boolean EndsWith(char [] string, char [] end){
 		boolean endsWithString;
 
 		endsWithString = false;
 		if(string.length >= end.length){
-			endsWithString = sSubstringEquals(string, string.length - end.length, end);
+			endsWithString = SubstringEquals(string, string.length - end.length, end);
 		}
 
 		return endsWithString;
 	}
 
-	public static StringReference [] sSplitByString(char [] toSplit, char [] splitBy){
+	public static StringReference [] SplitByString(char [] toSplit, char [] splitBy){
 		StringReference [] split;
 		char [] next;
 		double i;
@@ -3873,14 +3956,14 @@ static public class DynamicArrayNumbers{
 		for(i = 0d; i < toSplit.length; ){
 			c = toSplit[(int)(i)];
 
-			if(sSubstringEquals(toSplit, i, splitBy)){
+			if(SubstringEquals(toSplit, i, splitBy)){
 				n = new StringReference();
 				n.string = next;
 				split = AddString(split, n);
 				next = new char [0];
 				i = i + splitBy.length;
 			}else{
-				next = sAppendCharacter(next, c);
+				next = AppendCharacter(next, c);
 				i = i + 1d;
 			}
 		}
@@ -3892,7 +3975,7 @@ static public class DynamicArrayNumbers{
 		return split;
 	}
 
-	public static boolean sStringIsBefore(char [] a, char [] b){
+	public static boolean StringIsBefore(char [] a, char [] b){
 		boolean before, equal, done;
 		double i;
 
@@ -3925,399 +4008,56 @@ static public class DynamicArrayNumbers{
 		return before;
 	}
 
-	public static void strWriteStringToStingStream(char [] stream, NumberReference index, char [] src){
-		double i;
+	public static char [] JoinStringsWithSeparator(StringReference [] strings, char [] separator){
+		char [] result, string;
+		double length, i;
+		NumberReference index;
 
-		for(i = 0d; i < src.length; i = i + 1d){
-			stream[(int)(index.numberValue + i)] = src[(int)(i)];
+		index = CreateNumberReference(0d);
+
+		length = 0d;
+		for(i = 0d; i < strings.length; i = i + 1d){
+			length = length + strings[(int)(i)].string.length;
 		}
-		index.numberValue = index.numberValue + src.length;
-	}
+		length = length + (strings.length - 1d)*separator.length;
 
-	public static void strWriteCharacterToStingStream(char [] stream, NumberReference index, char src){
-		stream[(int)(index.numberValue)] = src;
-		index.numberValue = index.numberValue + 1d;
-	}
+		result = new char [(int)(length)];
 
-	public static void strWriteBooleanToStingStream(char [] stream, NumberReference index, boolean src){
-		if(src){
-			strWriteStringToStingStream(stream, index, "true".toCharArray());
-		}else{
-			strWriteStringToStingStream(stream, index, "false".toCharArray());
-		}
-	}
-
-	public static boolean strSubstringWithCheck(char [] string, double from, double to, StringReference stringReference){
-		boolean success;
-
-		if(from >= 0d && from <= string.length && to >= 0d && to <= string.length && from <= to){
-			stringReference.string = strSubstring(string, from, to);
-			success = true;
-		}else{
-			success = false;
-		}
-
-		return success;
-	}
-
-	public static char [] strSubstring(char [] string, double from, double to){
-		char [] n;
-		double i, length;
-
-		length = to - from;
-
-		n = new char [(int)(length)];
-
-		for(i = from; i < to; i = i + 1d){
-			n[(int)(i - from)] = string[(int)(i)];
-		}
-
-		return n;
-	}
-
-	public static char [] strAppendString(char [] s1, char [] s2){
-		char [] newString;
-
-		newString = strConcatenateString(s1, s2);
-
-		delete(s1);
-
-		return newString;
-	}
-
-	public static char [] strConcatenateString(char [] s1, char [] s2){
-		char [] newString;
-		double i;
-
-		newString = new char [(int)(s1.length + s2.length)];
-
-		for(i = 0d; i < s1.length; i = i + 1d){
-			newString[(int)(i)] = s1[(int)(i)];
-		}
-
-		for(i = 0d; i < s2.length; i = i + 1d){
-			newString[(int)(s1.length + i)] = s2[(int)(i)];
-		}
-
-		return newString;
-	}
-
-	public static char [] strAppendCharacter(char [] string, char c){
-		char [] newString;
-
-		newString = strConcatenateCharacter(string, c);
-
-		delete(string);
-
-		return newString;
-	}
-
-	public static char [] strConcatenateCharacter(char [] string, char c){
-		char [] newString;
-		double i;
-		newString = new char [(int)(string.length + 1d)];
-
-		for(i = 0d; i < string.length; i = i + 1d){
-			newString[(int)(i)] = string[(int)(i)];
-		}
-
-		newString[(int)(string.length)] = c;
-
-		return newString;
-	}
-
-	public static StringReference [] strSplitByCharacter(char [] toSplit, char splitBy){
-		StringReference [] split;
-		char [] stringToSplitBy;
-
-		stringToSplitBy = new char [1];
-		stringToSplitBy[0] = splitBy;
-
-		split = strSplitByString(toSplit, stringToSplitBy);
-
-		delete(stringToSplitBy);
-
-		return split;
-	}
-
-	public static boolean strIndexOfCharacter(char [] string, char character, NumberReference indexReference){
-		double i;
-		boolean found;
-
-		found = false;
-		for(i = 0d; i < string.length && !found; i = i + 1d){
-			if(string[(int)(i)] == character){
-				found = true;
-				indexReference.numberValue = i;
+		for(i = 0d; i < strings.length; i = i + 1d){
+			string = strings[(int)(i)].string;
+			WriteStringToStingStream(result, index, string);
+			if(i + 1d < strings.length){
+				WriteStringToStingStream(result, index, separator);
 			}
 		}
 
-		return found;
-	}
-
-	public static boolean strSubstringEqualsWithCheck(char [] string, double from, char [] substring, BooleanReference equalsReference){
-		boolean success;
-
-		if(from < string.length){
-			success = true;
-			equalsReference.booleanValue = strSubstringEquals(string, from, substring);
-		}else{
-			success = false;
-		}
-
-		return success;
-	}
-
-	public static boolean strSubstringEquals(char [] string, double from, char [] substring){
-		double i;
-		boolean equal;
-
-		equal = true;
-		for(i = 0d; i < substring.length && equal; i = i + 1d){
-			if(string[(int)(from + i)] != substring[(int)(i)]){
-				equal = false;
-			}
-		}
-
-		return equal;
-	}
-
-	public static boolean strIndexOfString(char [] string, char [] substring, NumberReference indexReference){
-		double i;
-		boolean found;
-
-		found = false;
-		for(i = 0d; i < string.length - substring.length + 1d && !found; i = i + 1d){
-			if(strSubstringEquals(string, i, substring)){
-				found = true;
-				indexReference.numberValue = i;
-			}
-		}
-
-		return found;
-	}
-
-	public static boolean strContainsCharacter(char [] string, char character){
-		double i;
-		boolean found;
-
-		found = false;
-		for(i = 0d; i < string.length && !found; i = i + 1d){
-			if(string[(int)(i)] == character){
-				found = true;
-			}
-		}
-
-		return found;
-	}
-
-	public static boolean strContainsString(char [] string, char [] substring){
-		return strIndexOfString(string, substring, new NumberReference());
-	}
-
-	public static void strToUpperCase(char [] string){
-		double i;
-
-		for(i = 0d; i < string.length; i = i + 1d){
-			string[(int)(i)] = charToUpperCase(string[(int)(i)]);
-		}
-	}
-
-	public static void strToLowerCase(char [] string){
-		double i;
-
-		for(i = 0d; i < string.length; i = i + 1d){
-			string[(int)(i)] = charToLowerCase(string[(int)(i)]);
-		}
-	}
-
-	public static boolean strEqualsIgnoreCase(char [] a, char [] b){
-		boolean equal;
-		double i;
-
-		if(a.length == b.length){
-			equal = true;
-			for(i = 0d; i < a.length && equal; i = i + 1d){
-				if(charToLowerCase(a[(int)(i)]) != charToLowerCase(b[(int)(i)])){
-					equal = false;
-				}
-			}
-		}else{
-			equal = false;
-		}
-
-		return equal;
-	}
-
-	public static char [] strReplaceString(char [] string, char [] toReplace, char [] replaceWith){
-		char [] result;
-		double i;
-		BooleanReference equalsReference;
-		boolean success;
-
-		equalsReference = new BooleanReference();
-		result = new char [0];
-
-		for(i = 0d; i < string.length; ){
-			success = strSubstringEqualsWithCheck(string, i, toReplace, equalsReference);
-			if(success){
-				success = equalsReference.booleanValue;
-			}
-
-			if(success && toReplace.length > 0d){
-				result = strConcatenateString(result, replaceWith);
-				i = i + toReplace.length;
-			}else{
-				result = strConcatenateCharacter(result, string[(int)(i)]);
-				i = i + 1d;
-			}
-		}
+		delete(index);
 
 		return result;
 	}
 
-	public static char [] strReplaceCharacter(char [] string, char toReplace, char replaceWith){
-		char [] result;
-		double i;
+	public static char [] JoinStrings(StringReference [] strings){
+		char [] result, string;
+		double length, i;
+		NumberReference index;
 
-		result = new char [0];
+		index = CreateNumberReference(0d);
 
-		for(i = 0d; i < string.length; i = i + 1d){
-			if(string[(int)(i)] == toReplace){
-				result = strConcatenateCharacter(result, replaceWith);
-			}else{
-				result = strConcatenateCharacter(result, string[(int)(i)]);
-			}
+		length = 0d;
+		for(i = 0d; i < strings.length; i = i + 1d){
+			length = length + strings[(int)(i)].string.length;
 		}
+
+		result = new char [(int)(length)];
+
+		for(i = 0d; i < strings.length; i = i + 1d){
+			string = strings[(int)(i)].string;
+			WriteStringToStingStream(result, index, string);
+		}
+
+		delete(index);
 
 		return result;
-	}
-
-	public static char [] strTrim(char [] string){
-		char [] result;
-		double i, lastWhitespaceLocationStart, lastWhitespaceLocationEnd;
-		boolean firstNonWhitespaceFound;
-
-		/* Find whitepaces at the start.*/
-		lastWhitespaceLocationStart = -1d;
-		firstNonWhitespaceFound = false;
-		for(i = 0d; i < string.length && !firstNonWhitespaceFound; i = i + 1d){
-			if(charIsWhiteSpace(string[(int)(i)])){
-				lastWhitespaceLocationStart = i;
-			}else{
-				firstNonWhitespaceFound = true;
-			}
-		}
-
-		/* Find whitepaces at the end.*/
-		lastWhitespaceLocationEnd = string.length;
-		firstNonWhitespaceFound = false;
-		for(i = string.length - 1d; i >= 0d && !firstNonWhitespaceFound; i = i - 1d){
-			if(charIsWhiteSpace(string[(int)(i)])){
-				lastWhitespaceLocationEnd = i;
-			}else{
-				firstNonWhitespaceFound = true;
-			}
-		}
-
-		if(lastWhitespaceLocationStart < lastWhitespaceLocationEnd){
-			result = strSubstring(string, lastWhitespaceLocationStart + 1d, lastWhitespaceLocationEnd);
-		}else{
-			result = new char [0];
-		}
-
-		return result;
-	}
-
-	public static boolean strStartsWith(char [] string, char [] start){
-		boolean startsWithString;
-
-		startsWithString = false;
-		if(string.length >= start.length){
-			startsWithString = strSubstringEquals(string, 0d, start);
-		}
-
-		return startsWithString;
-	}
-
-	public static boolean strEndsWith(char [] string, char [] end){
-		boolean endsWithString;
-
-		endsWithString = false;
-		if(string.length >= end.length){
-			endsWithString = strSubstringEquals(string, string.length - end.length, end);
-		}
-
-		return endsWithString;
-	}
-
-	public static StringReference [] strSplitByString(char [] toSplit, char [] splitBy){
-		StringReference [] split;
-		char [] next;
-		double i;
-		char c;
-		StringReference n;
-
-		split = new StringReference [0];
-
-		next = new char [0];
-		for(i = 0d; i < toSplit.length; ){
-			c = toSplit[(int)(i)];
-
-			if(strSubstringEquals(toSplit, i, splitBy)){
-				if(split.length != 0d || i != 0d){
-					n = new StringReference();
-					n.string = next;
-					split = lAddString(split, n);
-					next = new char [0];
-					i = i + splitBy.length;
-				}
-			}else{
-				next = strAppendCharacter(next, c);
-				i = i + 1d;
-			}
-		}
-
-		if(next.length > 0d){
-			n = new StringReference();
-			n.string = next;
-			split = lAddString(split, n);
-		}
-
-		return split;
-	}
-
-	public static boolean strStringIsBefore(char [] a, char [] b){
-		boolean before, equal, done;
-		double i;
-
-		before = false;
-		equal = true;
-		done = false;
-
-		if(a.length == 0d && b.length > 0d){
-			before = true;
-		}else{
-			for(i = 0d; i < a.length && i < b.length && !done; i = i + 1d){
-				if(a[(int)(i)] != b[(int)(i)]){
-					equal = false;
-				}
-				if(charCharacterIsBefore(a[(int)(i)], b[(int)(i)])){
-					before = true;
-				}
-				if(charCharacterIsBefore(b[(int)(i)], a[(int)(i)])){
-					done = true;
-				}
-			}
-
-			if(equal){
-				if(a.length < b.length){
-					before = true;
-				}
-			}
-		}
-
-		return before;
 	}
 
 	public static double [] StringToNumberArray(char [] string){
@@ -4747,7 +4487,14 @@ static public class DynamicArrayNumbers{
 			}
 
 			if(!done){
-				for(; decimal >= 10d || decimal < 1d; ){
+				exponent = (double)round(log10(decimal));
+				exponent = min(99d, exponent);
+				exponent = max(-99d, exponent);
+
+				decimal = decimal/pow(10d, exponent);
+
+				/* Adjust*/
+				for(; (decimal >= 10d || decimal < 1d) && abs(exponent) < 99d; ){
 					decimal = decimal*multiplier;
 					exponent = exponent + inc;
 				}
@@ -4759,12 +4506,12 @@ static public class DynamicArrayNumbers{
 		nCreateStringFromNumberWithCheck(exponent, 10d, exponentReference);
 
 		if(!isPositive){
-			result = strAppendString(result, "-".toCharArray());
+			result = AppendString(result, "-".toCharArray());
 		}
 
-		result = strAppendString(result, mantissaReference.string);
-		result = strAppendString(result, "e".toCharArray());
-		result = strAppendString(result, exponentReference.string);
+		result = AppendString(result, mantissaReference.string);
+		result = AppendString(result, "e".toCharArray());
+		result = AppendString(result, exponentReference.string);
 
 		return result;
 	}
@@ -4781,7 +4528,7 @@ static public class DynamicArrayNumbers{
 	}
 
 	public static boolean nCreateStringFromNumberWithCheck(double decimal, double base, StringReference stringReference){
-		char [] string;
+		DynamicArrayCharacters string;
 		double maximumDigits;
 		double digitPosition;
 		boolean hasPrintedPoint, isPositive;
@@ -4790,6 +4537,7 @@ static public class DynamicArrayNumbers{
 		CharacterReference characterReference;
 		char c;
 
+		string = CreateDynamicArrayCharacters();
 		isPositive = true;
 
 		if(decimal < 0d){
@@ -4798,15 +4546,13 @@ static public class DynamicArrayNumbers{
 		}
 
 		if(decimal == 0d){
-			stringReference.string = "0".toCharArray();
+			DynamicArrayAddCharacter(string, '0');
 			success = true;
 		}else{
 			characterReference = new CharacterReference();
 
 			if(IsInteger(base)){
 				success = true;
-
-				string = new char [0];
 
 				maximumDigits = nGetMaximumDigitsForBase(base);
 
@@ -4817,16 +4563,16 @@ static public class DynamicArrayNumbers{
 				hasPrintedPoint = false;
 
 				if(!isPositive){
-					string = strAppendCharacter(string, '-');
+					DynamicArrayAddCharacter(string, '-');
 				}
 
 				/* Print leading zeros.*/
 				if(digitPosition < 0d){
-					string = strAppendCharacter(string, '0');
-					string = strAppendCharacter(string, '.');
+					DynamicArrayAddCharacter(string, '0');
+					DynamicArrayAddCharacter(string, '.');
 					hasPrintedPoint = true;
 					for(i = 0d; i < -digitPosition - 1d; i = i + 1d){
-						string = strAppendCharacter(string, '0');
+						DynamicArrayAddCharacter(string, '0');
 					}
 				}
 
@@ -4840,7 +4586,7 @@ static public class DynamicArrayNumbers{
 
 					if(!hasPrintedPoint && digitPosition - i + 1d == 0d){
 						if(decimal != 0d){
-							string = strAppendCharacter(string, '.');
+							DynamicArrayAddCharacter(string, '.');
 						}
 						hasPrintedPoint = true;
 					}
@@ -4850,26 +4596,31 @@ static public class DynamicArrayNumbers{
 						success = nGetSingleDigitCharacterFromNumberWithCheck(d, base, characterReference);
 						if(success){
 							c = characterReference.characterValue;
-							string = strAppendCharacter(string, c);
+							DynamicArrayAddCharacter(string, c);
 						}
 					}
 
 					if(success){
 						decimal = decimal - d*pow(base, maximumDigits - i - 1d);
+						decimal = max(decimal, 0d);
+						decimal = (double)round(decimal);
 					}
 				}
 
 				if(success){
 					/* Print trailing zeros.*/
 					for(i = 0d; i < digitPosition - maximumDigits + 1d; i = i + 1d){
-						string = strAppendCharacter(string, '0');
+						DynamicArrayAddCharacter(string, '0');
 					}
-
-					stringReference.string = string;
 				}
 			}else{
 				success = false;
 			}
+		}
+
+		if(success){
+			stringReference.string = DynamicArrayCharactersToArray(string);
+			FreeDynamicArrayCharacters(string);
 		}
 
 		/* Done*/
@@ -5009,10 +4760,11 @@ static public class DynamicArrayNumbers{
 	}
 
 	public static boolean nExtractPartsFromNumberString(char [] n, double base, BooleanReference numberIsPositive, NumberArrayReference beforePoint, NumberArrayReference afterPoint, BooleanReference exponentIsPositive, NumberArrayReference exponent, StringReference errorMessages){
-		double i;
-		boolean success;
+		double i, j, count;
+		boolean success, done, complete;
 
 		i = 0d;
+		complete = false;
 
 		if(i < n.length){
 			if(n[(int)(i)] == '-'){
@@ -5023,125 +4775,49 @@ static public class DynamicArrayNumbers{
 				i = i + 1d;
 			}
 
-			success = nExtractPartsFromNumberStringFromSign(n, base, i, beforePoint, afterPoint, exponentIsPositive, exponent, errorMessages);
+			success = true;
 		}else{
 			success = false;
 			errorMessages.string = "Number cannot have length zero.".toCharArray();
 		}
 
-		return success;
-	}
-
-	public static boolean nExtractPartsFromNumberStringFromSign(char [] n, double base, double i, NumberArrayReference beforePoint, NumberArrayReference afterPoint, BooleanReference exponentIsPositive, NumberArrayReference exponent, StringReference errorMessages){
-		boolean success, done;
-		double count, j;
-
-		done = false;
-		count = 0d;
-		for(; i + count < n.length && !done; ){
-			if(nCharacterIsNumberCharacterInBase(n[(int)(i + count)], base)){
-				count = count + 1d;
-			}else{
-				done = true;
-			}
-		}
-
-		if(count >= 1d){
-			beforePoint.numberArray = new double [(int)(count)];
-
-			for(j = 0d; j < count; j = j + 1d){
-				beforePoint.numberArray[(int)(j)] = nGetNumberFromNumberCharacterForBase(n[(int)(i + j)], base);
-			}
-
-			i = i + count;
-
-			if(i < n.length){
-				success = nExtractPartsFromNumberStringFromPointOrExponent(n, base, i, afterPoint, exponentIsPositive, exponent, errorMessages);
-			}else{
-				afterPoint.numberArray = new double [0];
-				exponent.numberArray = new double [0];
-				success = true;
-			}
-		}else{
-			success = false;
-			errorMessages.string = "Number must have at least one number after the optional sign.".toCharArray();
-		}
-
-		return success;
-	}
-
-	public static boolean nExtractPartsFromNumberStringFromPointOrExponent(char [] n, double base, double i, NumberArrayReference afterPoint, BooleanReference exponentIsPositive, NumberArrayReference exponent, StringReference errorMessages){
-		boolean success, done;
-		double count, j;
-
-		if(n[(int)(i)] == '.'){
-			i = i + 1d;
-
-			if(i < n.length){
-				done = false;
-				count = 0d;
-				for(; i + count < n.length && !done; ){
-					if(nCharacterIsNumberCharacterInBase(n[(int)(i + count)], base)){
-						count = count + 1d;
-					}else{
-						done = true;
-					}
-				}
-
-				if(count >= 1d){
-					afterPoint.numberArray = new double [(int)(count)];
-
-					for(j = 0d; j < count; j = j + 1d){
-						afterPoint.numberArray[(int)(j)] = nGetNumberFromNumberCharacterForBase(n[(int)(i + j)], base);
-					}
-
-					i = i + count;
-
-					if(i < n.length){
-						success = nExtractPartsFromNumberStringFromExponent(n, base, i, exponentIsPositive, exponent, errorMessages);
-					}else{
-						exponent.numberArray = new double [0];
-						success = true;
-					}
+		if(success){
+			done = false;
+			count = 0d;
+			for(; i + count < n.length && !done; ){
+				if(nCharacterIsNumberCharacterInBase(n[(int)(i + count)], base)){
+					count = count + 1d;
 				}else{
-					success = false;
-					errorMessages.string = "There must be at least one digit after the decimal point.".toCharArray();
+					done = true;
+				}
+			}
+
+			if(count >= 1d){
+				beforePoint.numberArray = new double [(int)(count)];
+
+				for(j = 0d; j < count; j = j + 1d){
+					beforePoint.numberArray[(int)(j)] = nGetNumberFromNumberCharacterForBase(n[(int)(i + j)], base);
+				}
+
+				i = i + count;
+
+				if(i < n.length){
+					success = true;
+				}else{
+					afterPoint.numberArray = new double [0];
+					exponent.numberArray = new double [0];
+					success = true;
+					complete = true;
 				}
 			}else{
 				success = false;
-				errorMessages.string = "There must be at least one digit after the decimal point.".toCharArray();
+				errorMessages.string = "Number must have at least one number after the optional sign.".toCharArray();
 			}
-		}else if(base <= 14d && (n[(int)(i)] == 'e' || n[(int)(i)] == 'E')){
-			if(i < n.length){
-				success = nExtractPartsFromNumberStringFromExponent(n, base, i, exponentIsPositive, exponent, errorMessages);
-				afterPoint.numberArray = new double [0];
-			}else{
-				success = false;
-				errorMessages.string = "There must be at least one digit after the exponent.".toCharArray();
-			}
-		}else{
-			success = false;
-			errorMessages.string = "Expected decimal point or exponent symbol.".toCharArray();
 		}
 
-		return success;
-	}
-
-	public static boolean nExtractPartsFromNumberStringFromExponent(char [] n, double base, double i, BooleanReference exponentIsPositive, NumberArrayReference exponent, StringReference errorMessages){
-		boolean success, done;
-		double count, j;
-
-		if(base <= 14d && (n[(int)(i)] == 'e' || n[(int)(i)] == 'E')){
-			i = i + 1d;
-
-			if(i < n.length){
-				if(n[(int)(i)] == '-'){
-					exponentIsPositive.booleanValue = false;
-					i = i + 1d;
-				}else if(n[(int)(i)] == '+'){
-					exponentIsPositive.booleanValue = true;
-					i = i + 1d;
-				}
+		if(success && !complete){
+			if(n[(int)(i)] == '.'){
+				i = i + 1d;
 
 				if(i < n.length){
 					done = false;
@@ -5155,19 +4831,20 @@ static public class DynamicArrayNumbers{
 					}
 
 					if(count >= 1d){
-						exponent.numberArray = new double [(int)(count)];
+						afterPoint.numberArray = new double [(int)(count)];
 
 						for(j = 0d; j < count; j = j + 1d){
-							exponent.numberArray[(int)(j)] = nGetNumberFromNumberCharacterForBase(n[(int)(i + j)], base);
+							afterPoint.numberArray[(int)(j)] = nGetNumberFromNumberCharacterForBase(n[(int)(i + j)], base);
 						}
 
 						i = i + count;
 
-						if(i == n.length){
+						if(i < n.length){
 							success = true;
 						}else{
-							success = false;
-							errorMessages.string = "There cannot be any characters past the exponent of the number.".toCharArray();
+							exponent.numberArray = new double [0];
+							success = true;
+							complete = true;
 						}
 					}else{
 						success = false;
@@ -5175,15 +4852,77 @@ static public class DynamicArrayNumbers{
 					}
 				}else{
 					success = false;
+					errorMessages.string = "There must be at least one digit after the decimal point.".toCharArray();
+				}
+			}else if(base <= 14d && (n[(int)(i)] == 'e' || n[(int)(i)] == 'E')){
+				if(i < n.length){
+					success = true;
+					afterPoint.numberArray = new double [0];
+				}else{
+					success = false;
+					errorMessages.string = "There must be at least one digit after the exponent.".toCharArray();
+				}
+			}else{
+				success = false;
+				errorMessages.string = "Expected decimal point or exponent symbol.".toCharArray();
+			}
+		}
+
+		if(success && !complete){
+			if(base <= 14d && (n[(int)(i)] == 'e' || n[(int)(i)] == 'E')){
+				i = i + 1d;
+
+				if(i < n.length){
+					if(n[(int)(i)] == '-'){
+						exponentIsPositive.booleanValue = false;
+						i = i + 1d;
+					}else if(n[(int)(i)] == '+'){
+						exponentIsPositive.booleanValue = true;
+						i = i + 1d;
+					}
+
+					if(i < n.length){
+						done = false;
+						count = 0d;
+						for(; i + count < n.length && !done; ){
+							if(nCharacterIsNumberCharacterInBase(n[(int)(i + count)], base)){
+								count = count + 1d;
+							}else{
+								done = true;
+							}
+						}
+
+						if(count >= 1d){
+							exponent.numberArray = new double [(int)(count)];
+
+							for(j = 0d; j < count; j = j + 1d){
+								exponent.numberArray[(int)(j)] = nGetNumberFromNumberCharacterForBase(n[(int)(i + j)], base);
+							}
+
+							i = i + count;
+
+							if(i == n.length){
+								success = true;
+							}else{
+								success = false;
+								errorMessages.string = "There cannot be any characters past the exponent of the number.".toCharArray();
+							}
+						}else{
+							success = false;
+							errorMessages.string = "There must be at least one digit after the decimal point.".toCharArray();
+						}
+					}else{
+						success = false;
+						errorMessages.string = "There must be at least one digit after the exponent symbol.".toCharArray();
+					}
+				}else{
+					success = false;
 					errorMessages.string = "There must be at least one digit after the exponent symbol.".toCharArray();
 				}
 			}else{
 				success = false;
-				errorMessages.string = "There must be at least one digit after the exponent symbol.".toCharArray();
+				errorMessages.string = "Expected exponent symbol.".toCharArray();
 			}
-		}else{
-			success = false;
-			errorMessages.string = "Expected exponent symbol.".toCharArray();
 		}
 
 		return success;
@@ -5249,7 +4988,7 @@ static public class DynamicArrayNumbers{
 		boolean success;
 		NumberReference numberReference;
 
-		numberStrings = strSplitByString(str, ",".toCharArray());
+		numberStrings = SplitByString(str, ",".toCharArray());
 
 		numbers = new double [(int)(numberStrings.length)];
 		success = true;
@@ -5257,7 +4996,7 @@ static public class DynamicArrayNumbers{
 
 		for(i = 0d; i < numberStrings.length; i = i + 1d){
 			numberString = numberStrings[(int)(i)].string;
-			trimmedNumberString = strTrim(numberString);
+			trimmedNumberString = Trim(numberString);
 			success = nCreateNumberFromDecimalStringWithCheck(trimmedNumberString, numberReference, errorMessage);
 			numbers[(int)(i)] = numberReference.numberValue;
 
@@ -5271,791 +5010,6 @@ static public class DynamicArrayNumbers{
 		numberArrayReference.numberArray = numbers;
 
 		return success;
-	}
-
-static public class lLinkedListNodeStrings{
-	public boolean end;
-	public char [] value;
-	public lLinkedListNodeStrings next;
-}
-static public class lLinkedListStrings{
-	public lLinkedListNodeStrings first;
-	public lLinkedListNodeStrings last;
-}
-static public class lLinkedListNodeNumbers{
-	public lLinkedListNodeNumbers next;
-	public boolean end;
-	public double value;
-}
-static public class lLinkedListNumbers{
-	public lLinkedListNodeNumbers first;
-	public lLinkedListNodeNumbers last;
-}
-static public class lLinkedListCharacters{
-	public lLinkedListNodeCharacters first;
-	public lLinkedListNodeCharacters last;
-}
-static public class lLinkedListNodeCharacters{
-	public boolean end;
-	public char value;
-	public lLinkedListNodeCharacters next;
-}
-static public class lDynamicArrayNumbers{
-	public double [] array;
-	public double length;
-}
-	public static double [] lAddNumber(double [] list, double a){
-		double [] newlist;
-		double i;
-
-		newlist = new double [(int)(list.length + 1d)];
-		for(i = 0d; i < list.length; i = i + 1d){
-			newlist[(int)(i)] = list[(int)(i)];
-		}
-		newlist[(int)(list.length)] = a;
-		
-		delete(list);
-		
-		return newlist;
-	}
-
-	public static void lAddNumberRef(NumberArrayReference list, double i){
-		list.numberArray = lAddNumber(list.numberArray, i);
-	}
-
-	public static double [] lRemoveNumber(double [] list, double n){
-		double [] newlist;
-		double i;
-
-		newlist = new double [(int)(list.length - 1d)];
-
-		if(n >= 0d && n < list.length){
-			for(i = 0d; i < list.length; i = i + 1d){
-				if(i < n){
-					newlist[(int)(i)] = list[(int)(i)];
-				}
-				if(i > n){
-					newlist[(int)(i - 1d)] = list[(int)(i)];
-				}
-			}
-
-			delete(list);
-		}else{
-			delete(newlist);
-		}
-		
-		return newlist;
-	}
-
-	public static double lGetNumberRef(NumberArrayReference list, double i){
-		return list.numberArray[(int)(i)];
-	}
-
-	public static void lRemoveNumberRef(NumberArrayReference list, double i){
-		list.numberArray = lRemoveNumber(list.numberArray, i);
-	}
-
-	public static StringReference [] lAddString(StringReference [] list, StringReference a){
-		StringReference [] newlist;
-		double i;
-
-		newlist = new StringReference [(int)(list.length + 1d)];
-
-		for(i = 0d; i < list.length; i = i + 1d){
-			newlist[(int)(i)] = list[(int)(i)];
-		}
-		newlist[(int)(list.length)] = a;
-		
-		delete(list);
-		
-		return newlist;
-	}
-
-	public static void lAddStringRef(StringArrayReference list, StringReference i){
-		list.stringArray = lAddString(list.stringArray, i);
-	}
-
-	public static StringReference [] lRemoveString(StringReference [] list, double n){
-		StringReference [] newlist;
-		double i;
-
-		newlist = new StringReference [(int)(list.length - 1d)];
-
-		if(n >= 0d && n < list.length){
-			for(i = 0d; i < list.length; i = i + 1d){
-				if(i < n){
-					newlist[(int)(i)] = list[(int)(i)];
-				}
-				if(i > n){
-					newlist[(int)(i - 1d)] = list[(int)(i)];
-				}
-			}
-
-			delete(list);
-		}else{
-			delete(newlist);
-		}
-		
-		return newlist;
-	}
-
-	public static StringReference lGetStringRef(StringArrayReference list, double i){
-		return list.stringArray[(int)(i)];
-	}
-
-	public static void lRemoveStringRef(StringArrayReference list, double i){
-		list.stringArray = lRemoveString(list.stringArray, i);
-	}
-
-	public static boolean [] lAddBoolean(boolean [] list, boolean a){
-		boolean [] newlist;
-		double i;
-
-		newlist = new boolean [(int)(list.length + 1d)];
-		for(i = 0d; i < list.length; i = i + 1d){
-			newlist[(int)(i)] = list[(int)(i)];
-		}
-		newlist[(int)(list.length)] = a;
-		
-		delete(list);
-		
-		return newlist;
-	}
-
-	public static void lAddBooleanRef(BooleanArrayReference list, boolean i){
-		list.booleanArray = lAddBoolean(list.booleanArray, i);
-	}
-
-	public static boolean [] lRemoveBoolean(boolean [] list, double n){
-		boolean [] newlist;
-		double i;
-
-		newlist = new boolean [(int)(list.length - 1d)];
-
-		if(n >= 0d && n < list.length){
-			for(i = 0d; i < list.length; i = i + 1d){
-				if(i < n){
-					newlist[(int)(i)] = list[(int)(i)];
-				}
-				if(i > n){
-					newlist[(int)(i - 1d)] = list[(int)(i)];
-				}
-			}
-
-			delete(list);
-		}else{
-			delete(newlist);
-		}
-		
-		return newlist;
-	}
-
-	public static boolean lGetBooleanRef(BooleanArrayReference list, double i){
-		return list.booleanArray[(int)(i)];
-	}
-
-	public static void lRemoveDecimalRef(BooleanArrayReference list, double i){
-		list.booleanArray = lRemoveBoolean(list.booleanArray, i);
-	}
-
-	public static lLinkedListStrings lCreateLinkedListString(){
-		lLinkedListStrings ll;
-
-		ll = new lLinkedListStrings();
-		ll.first = new lLinkedListNodeStrings();
-		ll.last = ll.first;
-		ll.last.end = true;
-
-		return ll;
-	}
-
-	public static void lLinkedListAddString(lLinkedListStrings ll, char [] value){
-		ll.last.end = false;
-		ll.last.value = value;
-		ll.last.next = new lLinkedListNodeStrings();
-		ll.last.next.end = true;
-		ll.last = ll.last.next;
-	}
-
-	public static StringReference [] lLinkedListStringsToArray(lLinkedListStrings ll){
-		StringReference [] array;
-		double length, i;
-		lLinkedListNodeStrings node;
-
-		node = ll.first;
-
-		length = lLinkedListStringsLength(ll);
-
-		array = new StringReference [(int)(length)];
-
-		for(i = 0d; i < length; i = i + 1d){
-			array[(int)(i)] = new StringReference();
-			array[(int)(i)].string = node.value;
-			node = node.next;
-		}
-
-		return array;
-	}
-
-	public static double lLinkedListStringsLength(lLinkedListStrings ll){
-		double l;
-		lLinkedListNodeStrings node;
-
-		l = 0d;
-		node = ll.first;
-		for(; !node.end; ){
-			node = node.next;
-			l = l + 1d;
-		}
-
-		return l;
-	}
-
-	public static void lFreeLinkedListString(lLinkedListStrings ll){
-		lLinkedListNodeStrings node, prev;
-
-		node = ll.first;
-
-		for(; !node.end; ){
-			prev = node;
-			node = node.next;
-			delete(prev);
-		}
-
-		delete(node);
-	}
-
-	public static lLinkedListNumbers lCreateLinkedListNumbers(){
-		lLinkedListNumbers ll;
-
-		ll = new lLinkedListNumbers();
-		ll.first = new lLinkedListNodeNumbers();
-		ll.last = ll.first;
-		ll.last.end = true;
-
-		return ll;
-	}
-
-	public static lLinkedListNumbers [] lCreateLinkedListNumbersArray(double length){
-		lLinkedListNumbers [] lls;
-		double i;
-
-		lls = new lLinkedListNumbers [(int)(length)];
-		for(i = 0d; i < lls.length; i = i + 1d){
-			lls[(int)(i)] = lCreateLinkedListNumbers();
-		}
-
-		return lls;
-	}
-
-	public static void lLinkedListAddNumber(lLinkedListNumbers ll, double value){
-		ll.last.end = false;
-		ll.last.value = value;
-		ll.last.next = new lLinkedListNodeNumbers();
-		ll.last.next.end = true;
-		ll.last = ll.last.next;
-	}
-
-	public static double lLinkedListNumbersLength(lLinkedListNumbers ll){
-		double l;
-		lLinkedListNodeNumbers node;
-
-		l = 0d;
-		node = ll.first;
-		for(; !node.end; ){
-			node = node.next;
-			l = l + 1d;
-		}
-
-		return l;
-	}
-
-	public static double lLinkedListNumbersIndex(lLinkedListNumbers ll, double index){
-		double i;
-		lLinkedListNodeNumbers node;
-
-		node = ll.first;
-		for(i = 0d; i < index; i = i + 1d){
-			node = node.next;
-		}
-
-		return node.value;
-	}
-
-	public static void lLinkedListInsertNumber(lLinkedListNumbers ll, double index, double value){
-		double i;
-		lLinkedListNodeNumbers node, tmp;
-
-		if(index == 0d){
-			tmp = ll.first;
-			ll.first = new lLinkedListNodeNumbers();
-			ll.first.next = tmp;
-			ll.first.value = value;
-			ll.first.end = false;
-		}else{
-			node = ll.first;
-			for(i = 0d; i < index - 1d; i = i + 1d){
-				node = node.next;
-			}
-
-			tmp = node.next;
-			node.next = new lLinkedListNodeNumbers();
-			node.next.next = tmp;
-			node.next.value = value;
-			node.next.end = false;
-		}
-	}
-
-	public static void lLinkedListSet(lLinkedListNumbers ll, double index, double value){
-		double i;
-		lLinkedListNodeNumbers node;
-
-		node = ll.first;
-		for(i = 0d; i < index; i = i + 1d){
-			node = node.next;
-		}
-
-		node.next.value = value;
-	}
-
-	public static void lLinkedListRemoveNumber(lLinkedListNumbers ll, double index){
-		double i;
-		lLinkedListNodeNumbers node, prev;
-
-		node = ll.first;
-		prev = ll.first;
-
-		for(i = 0d; i < index; i = i + 1d){
-			prev = node;
-			node = node.next;
-		}
-
-		if(index == 0d){
-			ll.first = prev.next;
-		}
-		if(!prev.next.end){
-			prev.next = prev.next.next;
-		}
-	}
-
-	public static void lFreeLinkedListNumbers(lLinkedListNumbers ll){
-		lLinkedListNodeNumbers node, prev;
-
-		node = ll.first;
-
-		for(; !node.end; ){
-			prev = node;
-			node = node.next;
-			delete(prev);
-		}
-
-		delete(node);
-	}
-
-	public static void lFreeLinkedListNumbersArray(lLinkedListNumbers [] lls){
-		double i;
-
-		for(i = 0d; i < lls.length; i = i + 1d){
-			lFreeLinkedListNumbers(lls[(int)(i)]);
-		}
-		delete(lls);
-	}
-
-	public static double [] lLinkedListNumbersToArray(lLinkedListNumbers ll){
-		double [] array;
-		double length, i;
-		lLinkedListNodeNumbers node;
-
-		node = ll.first;
-
-		length = lLinkedListNumbersLength(ll);
-
-		array = new double [(int)(length)];
-
-		for(i = 0d; i < length; i = i + 1d){
-			array[(int)(i)] = node.value;
-			node = node.next;
-		}
-
-		return array;
-	}
-
-	public static lLinkedListNumbers lArrayToLinkedListNumbers(double [] array){
-		lLinkedListNumbers ll;
-		double i;
-
-		ll = lCreateLinkedListNumbers();
-
-		for(i = 0d; i < array.length; i = i + 1d){
-			lLinkedListAddNumber(ll, array[(int)(i)]);
-		}
-
-		return ll;
-	}
-
-	public static boolean lLinkedListNumbersEqual(lLinkedListNumbers a, lLinkedListNumbers b){
-		boolean equal, done;
-		lLinkedListNodeNumbers an, bn;
-
-		an = a.first;
-		bn = b.first;
-
-		equal = true;
-		done = false;
-		for(; equal && !done; ){
-			if(an.end == bn.end){
-				if(an.end){
-					done = true;
-				}else if(an.value == bn.value){
-					an = an.next;
-					bn = bn.next;
-				}else{
-					equal = false;
-				}
-			}else{
-				equal = false;
-			}
-		}
-
-		return equal;
-	}
-
-	public static lLinkedListCharacters lCreateLinkedListCharacter(){
-		lLinkedListCharacters ll;
-
-		ll = new lLinkedListCharacters();
-		ll.first = new lLinkedListNodeCharacters();
-		ll.last = ll.first;
-		ll.last.end = true;
-
-		return ll;
-	}
-
-	public static void lLinkedListAddCharacter(lLinkedListCharacters ll, char value){
-		ll.last.end = false;
-		ll.last.value = value;
-		ll.last.next = new lLinkedListNodeCharacters();
-		ll.last.next.end = true;
-		ll.last = ll.last.next;
-	}
-
-	public static char [] lLinkedListCharactersToArray(lLinkedListCharacters ll){
-		char [] array;
-		double length, i;
-		lLinkedListNodeCharacters node;
-
-		node = ll.first;
-
-		length = lLinkedListCharactersLength(ll);
-
-		array = new char [(int)(length)];
-
-		for(i = 0d; i < length; i = i + 1d){
-			array[(int)(i)] = node.value;
-			node = node.next;
-		}
-
-		return array;
-	}
-
-	public static double lLinkedListCharactersLength(lLinkedListCharacters ll){
-		double l;
-		lLinkedListNodeCharacters node;
-
-		l = 0d;
-		node = ll.first;
-		for(; !node.end; ){
-			node = node.next;
-			l = l + 1d;
-		}
-
-		return l;
-	}
-
-	public static void lFreeLinkedListCharacter(lLinkedListCharacters ll){
-		lLinkedListNodeCharacters node, prev;
-
-		node = ll.first;
-
-		for(; !node.end; ){
-			prev = node;
-			node = node.next;
-			delete(prev);
-		}
-
-		delete(node);
-	}
-
-	public static lDynamicArrayNumbers lCreateDynamicArrayNumbers(){
-		lDynamicArrayNumbers da;
-
-		da = new lDynamicArrayNumbers();
-		da.array = new double [10];
-		da.length = 0d;
-
-		return da;
-	}
-
-	public static lDynamicArrayNumbers lCreateDynamicArrayNumbersWithInitialCapacity(double capacity){
-		lDynamicArrayNumbers da;
-
-		da = new lDynamicArrayNumbers();
-		da.array = new double [(int)(capacity)];
-		da.length = 0d;
-
-		return da;
-	}
-
-	public static void lDynamicArrayAddNumber(lDynamicArrayNumbers da, double value){
-		if(da.length == da.array.length){
-			lDynamicArrayNumbersIncreaseSize(da);
-		}
-
-		da.array[(int)(da.length)] = value;
-		da.length = da.length + 1d;
-	}
-
-	public static void lDynamicArrayNumbersIncreaseSize(lDynamicArrayNumbers da){
-		double newLength, i;
-		double [] newArray;
-
-		newLength = (double)round(da.array.length*3d/2d);
-		newArray = new double [(int)(newLength)];
-
-		for(i = 0d; i < da.array.length; i = i + 1d){
-			newArray[(int)(i)] = da.array[(int)(i)];
-		}
-
-		delete(da.array);
-
-		da.array = newArray;
-	}
-
-	public static boolean lDynamicArrayNumbersDecreaseSizeNecessary(lDynamicArrayNumbers da){
-		boolean needsDecrease;
-
-		needsDecrease = false;
-
-		if(da.length > 10d){
-			needsDecrease = da.length <= (double)round(da.array.length*2d/3d);
-		}
-
-		return needsDecrease;
-	}
-
-	public static void lDynamicArrayNumbersDecreaseSize(lDynamicArrayNumbers da){
-		double newLength, i;
-		double [] newArray;
-
-		newLength = (double)round(da.array.length*2d/3d);
-		newArray = new double [(int)(newLength)];
-
-		for(i = 0d; i < da.array.length; i = i + 1d){
-			newArray[(int)(i)] = da.array[(int)(i)];
-		}
-
-		delete(da.array);
-
-		da.array = newArray;
-	}
-
-	public static double lDynamicArrayNumbersIndex(lDynamicArrayNumbers da, double index){
-		return da.array[(int)(index)];
-	}
-
-	public static double lDynamicArrayNumbersLength(lDynamicArrayNumbers da){
-		return da.length;
-	}
-
-	public static void lDynamicArrayInsertNumber(lDynamicArrayNumbers da, double index, double value){
-		double i;
-
-		if(da.length == da.array.length){
-			lDynamicArrayNumbersIncreaseSize(da);
-		}
-
-		for(i = da.length; i > index; i = i - 1d){
-			da.array[(int)(i)] = da.array[(int)(i - 1d)];
-		}
-
-		da.array[(int)(index)] = value;
-
-		da.length = da.length + 1d;
-	}
-
-	public static void lDynamicArraySet(lDynamicArrayNumbers da, double index, double value){
-		da.array[(int)(index)] = value;
-	}
-
-	public static void lDynamicArrayRemoveNumber(lDynamicArrayNumbers da, double index){
-		double i;
-
-		for(i = index; i < da.length - 1d; i = i + 1d){
-			da.array[(int)(i)] = da.array[(int)(i + 1d)];
-		}
-
-		da.length = da.length - 1d;
-
-		if(lDynamicArrayNumbersDecreaseSizeNecessary(da)){
-			lDynamicArrayNumbersDecreaseSize(da);
-		}
-	}
-
-	public static void lFreeDynamicArrayNumbers(lDynamicArrayNumbers da){
-		delete(da.array);
-		delete(da);
-	}
-
-	public static double [] lDynamicArrayNumbersToArray(lDynamicArrayNumbers da){
-		double [] array;
-		double i;
-
-		array = new double [(int)(da.length)];
-
-		for(i = 0d; i < da.length; i = i + 1d){
-			array[(int)(i)] = da.array[(int)(i)];
-		}
-
-		return array;
-	}
-
-	public static lDynamicArrayNumbers lArrayToDynamicArrayNumbersWithOptimalSize(double [] array){
-		lDynamicArrayNumbers da;
-		double i;
-		double c, n, newCapacity;
-
-		/*
-         c = 10*(3/2)^n
-         log(c) = log(10*(3/2)^n)
-         log(c) = log(10) + log((3/2)^n)
-         log(c) = 1 + log((3/2)^n)
-         log(c) - 1 = log((3/2)^n)
-         log(c) - 1 = n*log(3/2)
-         n = (log(c) - 1)/log(3/2)
-        */
-		c = array.length;
-		n = (log(c) - 1d)/log(3d/2d);
-		newCapacity = floor(n) + 1d;
-
-		da = lCreateDynamicArrayNumbersWithInitialCapacity(newCapacity);
-
-		for(i = 0d; i < array.length; i = i + 1d){
-			da.array[(int)(i)] = array[(int)(i)];
-		}
-
-		return da;
-	}
-
-	public static lDynamicArrayNumbers lArrayToDynamicArrayNumbers(double [] array){
-		lDynamicArrayNumbers da;
-
-		da = new lDynamicArrayNumbers();
-		da.array = CopyNumberArray(array);
-		da.length = array.length;
-
-		return da;
-	}
-
-	public static boolean lDynamicArrayNumbersEqual(lDynamicArrayNumbers a, lDynamicArrayNumbers b){
-		boolean equal;
-		double i;
-
-		equal = true;
-		if(a.length == b.length){
-			for(i = 0d; i < a.length && equal; i = i + 1d){
-				if(a.array[(int)(i)] != b.array[(int)(i)]){
-					equal = false;
-				}
-			}
-		}else{
-			equal = false;
-		}
-
-		return equal;
-	}
-
-	public static lLinkedListNumbers lDynamicArrayNumbersToLinkedList(lDynamicArrayNumbers da){
-		lLinkedListNumbers ll;
-		double i;
-
-		ll = lCreateLinkedListNumbers();
-
-		for(i = 0d; i < da.length; i = i + 1d){
-			lLinkedListAddNumber(ll, da.array[(int)(i)]);
-		}
-
-		return ll;
-	}
-
-	public static lDynamicArrayNumbers lLinkedListToDynamicArrayNumbers(lLinkedListNumbers ll){
-		lDynamicArrayNumbers da;
-		double i;
-		lLinkedListNodeNumbers node;
-
-		node = ll.first;
-
-		da = new lDynamicArrayNumbers();
-		da.length = lLinkedListNumbersLength(ll);
-
-		da.array = new double [(int)(da.length)];
-
-		for(i = 0d; i < da.length; i = i + 1d){
-			da.array[(int)(i)] = node.value;
-			node = node.next;
-		}
-
-		return da;
-	}
-
-	public static char [] lAddCharacter(char [] list, char a){
-		char [] newlist;
-		double i;
-
-		newlist = new char [(int)(list.length + 1d)];
-		for(i = 0d; i < list.length; i = i + 1d){
-			newlist[(int)(i)] = list[(int)(i)];
-		}
-		newlist[(int)(list.length)] = a;
-		
-		delete(list);
-		
-		return newlist;
-	}
-
-	public static void lAddCharacterRef(StringReference list, char i){
-		list.string = lAddCharacter(list.string, i);
-	}
-
-	public static char [] lRemoveCharacter(char [] list, double n){
-		char [] newlist;
-		double i;
-
-		newlist = new char [(int)(list.length - 1d)];
-
-		if(n >= 0d && n < list.length){
-			for(i = 0d; i < list.length; i = i + 1d){
-				if(i < n){
-					newlist[(int)(i)] = list[(int)(i)];
-				}
-				if(i > n){
-					newlist[(int)(i - 1d)] = list[(int)(i)];
-				}
-			}
-
-			delete(list);
-		}else{
-			delete(newlist);
-		}
-
-		return newlist;
-	}
-
-	public static char lGetCharacterRef(StringReference list, double i){
-		return list.string[(int)(i)];
-	}
-
-	public static void lRemoveCharacterRef(StringReference list, double i){
-		list.string = lRemoveCharacter(list.string, i);
 	}
 
 	public static double Negate(double x){
@@ -6630,59 +5584,35 @@ static public class lDynamicArrayNumbers{
 	public static boolean charIsUpperCase(char character){
 		boolean isUpper;
 
-		isUpper = false;
+		isUpper = true;
 		if(character == 'A'){
-			isUpper = true;
 		}else if(character == 'B'){
-			isUpper = true;
 		}else if(character == 'C'){
-			isUpper = true;
 		}else if(character == 'D'){
-			isUpper = true;
 		}else if(character == 'E'){
-			isUpper = true;
 		}else if(character == 'F'){
-			isUpper = true;
 		}else if(character == 'G'){
-			isUpper = true;
 		}else if(character == 'H'){
-			isUpper = true;
 		}else if(character == 'I'){
-			isUpper = true;
 		}else if(character == 'J'){
-			isUpper = true;
 		}else if(character == 'K'){
-			isUpper = true;
 		}else if(character == 'L'){
-			isUpper = true;
 		}else if(character == 'M'){
-			isUpper = true;
 		}else if(character == 'N'){
-			isUpper = true;
 		}else if(character == 'O'){
-			isUpper = true;
 		}else if(character == 'P'){
-			isUpper = true;
 		}else if(character == 'Q'){
-			isUpper = true;
 		}else if(character == 'R'){
-			isUpper = true;
 		}else if(character == 'S'){
-			isUpper = true;
 		}else if(character == 'T'){
-			isUpper = true;
 		}else if(character == 'U'){
-			isUpper = true;
 		}else if(character == 'V'){
-			isUpper = true;
 		}else if(character == 'W'){
-			isUpper = true;
 		}else if(character == 'X'){
-			isUpper = true;
 		}else if(character == 'Y'){
-			isUpper = true;
 		}else if(character == 'Z'){
-			isUpper = true;
+		}else{
+			isUpper = false;
 		}
 
 		return isUpper;
@@ -6691,59 +5621,35 @@ static public class lDynamicArrayNumbers{
 	public static boolean charIsLowerCase(char character){
 		boolean isLower;
 
-		isLower = false;
+		isLower = true;
 		if(character == 'a'){
-			isLower = true;
 		}else if(character == 'b'){
-			isLower = true;
 		}else if(character == 'c'){
-			isLower = true;
 		}else if(character == 'd'){
-			isLower = true;
 		}else if(character == 'e'){
-			isLower = true;
 		}else if(character == 'f'){
-			isLower = true;
 		}else if(character == 'g'){
-			isLower = true;
 		}else if(character == 'h'){
-			isLower = true;
 		}else if(character == 'i'){
-			isLower = true;
 		}else if(character == 'j'){
-			isLower = true;
 		}else if(character == 'k'){
-			isLower = true;
 		}else if(character == 'l'){
-			isLower = true;
 		}else if(character == 'm'){
-			isLower = true;
 		}else if(character == 'n'){
-			isLower = true;
 		}else if(character == 'o'){
-			isLower = true;
 		}else if(character == 'p'){
-			isLower = true;
 		}else if(character == 'q'){
-			isLower = true;
 		}else if(character == 'r'){
-			isLower = true;
 		}else if(character == 's'){
-			isLower = true;
 		}else if(character == 't'){
-			isLower = true;
 		}else if(character == 'u'){
-			isLower = true;
 		}else if(character == 'v'){
-			isLower = true;
 		}else if(character == 'w'){
-			isLower = true;
 		}else if(character == 'x'){
-			isLower = true;
 		}else if(character == 'y'){
-			isLower = true;
 		}else if(character == 'z'){
-			isLower = true;
+		}else{
+			isLower = false;
 		}
 
 		return isLower;
@@ -6756,27 +5662,19 @@ static public class lDynamicArrayNumbers{
 	public static boolean charIsNumber(char character){
 		boolean isNumberx;
 
-		isNumberx = false;
+		isNumberx = true;
 		if(character == '0'){
-			isNumberx = true;
 		}else if(character == '1'){
-			isNumberx = true;
 		}else if(character == '2'){
-			isNumberx = true;
 		}else if(character == '3'){
-			isNumberx = true;
 		}else if(character == '4'){
-			isNumberx = true;
 		}else if(character == '5'){
-			isNumberx = true;
 		}else if(character == '6'){
-			isNumberx = true;
 		}else if(character == '7'){
-			isNumberx = true;
 		}else if(character == '8'){
-			isNumberx = true;
 		}else if(character == '9'){
-			isNumberx = true;
+		}else{
+			isNumberx = false;
 		}
 
 		return isNumberx;
@@ -6785,15 +5683,13 @@ static public class lDynamicArrayNumbers{
 	public static boolean charIsWhiteSpace(char character){
 		boolean isWhiteSpacex;
 
-		isWhiteSpacex = false;
+		isWhiteSpacex = true;
 		if(character == ' '){
-			isWhiteSpacex = true;
 		}else if(character == '\t'){
-			isWhiteSpacex = true;
 		}else if(character == '\n'){
-			isWhiteSpacex = true;
 		}else if(character == '\r'){
-			isWhiteSpacex = true;
+		}else{
+			isWhiteSpacex = false;
 		}
 
 		return isWhiteSpacex;
@@ -6802,71 +5698,41 @@ static public class lDynamicArrayNumbers{
 	public static boolean charIsSymbol(char character){
 		boolean isSymbolx;
 
-		isSymbolx = false;
+		isSymbolx = true;
 		if(character == '!'){
-			isSymbolx = true;
 		}else if(character == '\"'){
-			isSymbolx = true;
 		}else if(character == '#'){
-			isSymbolx = true;
 		}else if(character == '$'){
-			isSymbolx = true;
 		}else if(character == '%'){
-			isSymbolx = true;
 		}else if(character == '&'){
-			isSymbolx = true;
 		}else if(character == '\''){
-			isSymbolx = true;
 		}else if(character == '('){
-			isSymbolx = true;
 		}else if(character == ')'){
-			isSymbolx = true;
 		}else if(character == '*'){
-			isSymbolx = true;
 		}else if(character == '+'){
-			isSymbolx = true;
 		}else if(character == ','){
-			isSymbolx = true;
 		}else if(character == '-'){
-			isSymbolx = true;
 		}else if(character == '.'){
-			isSymbolx = true;
 		}else if(character == '/'){
-			isSymbolx = true;
 		}else if(character == ':'){
-			isSymbolx = true;
 		}else if(character == ';'){
-			isSymbolx = true;
 		}else if(character == '<'){
-			isSymbolx = true;
 		}else if(character == '='){
-			isSymbolx = true;
 		}else if(character == '>'){
-			isSymbolx = true;
 		}else if(character == '?'){
-			isSymbolx = true;
 		}else if(character == '@'){
-			isSymbolx = true;
 		}else if(character == '['){
-			isSymbolx = true;
 		}else if(character == '\\'){
-			isSymbolx = true;
 		}else if(character == ']'){
-			isSymbolx = true;
 		}else if(character == '^'){
-			isSymbolx = true;
 		}else if(character == '_'){
-			isSymbolx = true;
 		}else if(character == '`'){
-			isSymbolx = true;
 		}else if(character == '{'){
-			isSymbolx = true;
 		}else if(character == '|'){
-			isSymbolx = true;
 		}else if(character == '}'){
-			isSymbolx = true;
 		}else if(character == '~'){
-			isSymbolx = true;
+		}else{
+			isSymbolx = false;
 		}
 
 		return isSymbolx;
@@ -6879,6 +5745,60 @@ static public class lDynamicArrayNumbers{
 		bd = b;
 
 		return ad < bd;
+	}
+
+	public static char charDecimalDigitToCharacter(double digit){
+		char c;
+		if(digit == 1d){
+			c = '1';
+		}else if(digit == 2d){
+			c = '2';
+		}else if(digit == 3d){
+			c = '3';
+		}else if(digit == 4d){
+			c = '4';
+		}else if(digit == 5d){
+			c = '5';
+		}else if(digit == 6d){
+			c = '6';
+		}else if(digit == 7d){
+			c = '7';
+		}else if(digit == 8d){
+			c = '8';
+		}else if(digit == 9d){
+			c = '9';
+		}else{
+			c = '0';
+		}
+		return c;
+	}
+
+	public static double charCharacterToDecimalDigit(char c){
+		double digit;
+
+		if(c == '1'){
+			digit = 1d;
+		}else if(c == '2'){
+			digit = 2d;
+		}else if(c == '3'){
+			digit = 3d;
+		}else if(c == '4'){
+			digit = 4d;
+		}else if(c == '5'){
+			digit = 5d;
+		}else if(c == '6'){
+			digit = 6d;
+		}else if(c == '7'){
+			digit = 7d;
+		}else if(c == '8'){
+			digit = 8d;
+		}else if(c == '9'){
+			digit = 9d;
+		}else{
+			digit = 0d;
+		}
+
+		return digit;
 	}
 
   public static void delete(Object object){

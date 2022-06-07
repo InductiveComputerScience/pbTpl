@@ -59,20 +59,6 @@ struct LinkedListNodeCharacters;
 
 struct DynamicArrayNumbers;
 
-struct lLinkedListNodeStrings;
-
-struct lLinkedListStrings;
-
-struct lLinkedListNodeNumbers;
-
-struct lLinkedListNumbers;
-
-struct lLinkedListCharacters;
-
-struct lLinkedListNodeCharacters;
-
-struct lDynamicArrayNumbers;
-
 struct LinkedListNodeNodes{
   bool end;
   Node *value;
@@ -202,44 +188,6 @@ struct DynamicArrayNumbers{
   double length;
 };
 
-struct lLinkedListNodeStrings{
-  bool end;
-  vector<wchar_t> *value;
-  lLinkedListNodeStrings *next;
-};
-
-struct lLinkedListStrings{
-  lLinkedListNodeStrings *first;
-  lLinkedListNodeStrings *last;
-};
-
-struct lLinkedListNodeNumbers{
-  lLinkedListNodeNumbers *next;
-  bool end;
-  double value;
-};
-
-struct lLinkedListNumbers{
-  lLinkedListNodeNumbers *first;
-  lLinkedListNodeNumbers *last;
-};
-
-struct lLinkedListCharacters{
-  lLinkedListNodeCharacters *first;
-  lLinkedListNodeCharacters *last;
-};
-
-struct lLinkedListNodeCharacters{
-  bool end;
-  wchar_t value;
-  lLinkedListNodeCharacters *next;
-};
-
-struct lDynamicArrayNumbers{
-  vector<double> *array;
-  double length;
-};
-
 LinkedListNodes *CreateLinkedListNodes();
 void LinkedListAddNode(LinkedListNodes *ll, Node *value);
 vector<Node*> *LinkedListNodesToArray(LinkedListNodes *ll);
@@ -248,7 +196,8 @@ void FreeLinkedListNode(LinkedListNodes *ll);
 
 bool IsValidTemplate(vector<wchar_t> *templatex);
 bool GenerateTokensFromTemplate(vector<wchar_t> *templatex, LinkedListStrings *tokens, StringReference *errorMessage);
-bool GenerateDocument(vector<wchar_t> *templatex, Element *data, StringReference *document, StringReference *errorMessage);
+bool GenerateDocument(vector<wchar_t> *templatex, vector<wchar_t> *json, StringReference *document, StringReference *errorMessage);
+bool GenerateDocumentBasedOnElement(vector<wchar_t> *templatex, Element *data, StringReference *document, StringReference *errorMessage);
 bool GenerateDocumentFromBlock(Node *root, Element *data, LinkedListCharacters *ll, StringReference *errorMessage);
 bool GenerateDocumentFromNode(Node *n, Element *data, LinkedListCharacters *ll, StringReference *errorMessage);
 bool GenerateDocumentFromUse(Node *n, Element *data, LinkedListCharacters *ll, StringReference *errorMessage);
@@ -262,6 +211,7 @@ bool ParseForeachBlock(vector<StringReference*> *tokens, NumberReference *positi
 bool ParseNodeString(vector<wchar_t> *token, Node *node, StringReference *errorMessage);
 
 double test();
+void testGenerateDocument8(NumberReference *failures);
 void testTokenGeneration(NumberReference *failures);
 void testGenerateDocument1(NumberReference *failures);
 void testGenerateDocument2(NumberReference *failures);
@@ -451,6 +401,8 @@ DynamicArrayNumbers *ArrayToDynamicArrayNumbers(vector<double> *array);
 bool DynamicArrayNumbersEqual(DynamicArrayNumbers *a, DynamicArrayNumbers *b);
 LinkedListNumbers *DynamicArrayNumbersToLinkedList(DynamicArrayNumbers *da);
 DynamicArrayNumbers *LinkedListToDynamicArrayNumbers(LinkedListNumbers *ll);
+double DynamicArrayNumbersIndexOf(DynamicArrayNumbers *arr, double n, BooleanReference *foundReference);
+bool DynamicArrayNumbersIsInArray(DynamicArrayNumbers *arr, double n);
 
 vector<wchar_t> *AddCharacter(vector<wchar_t> *list, wchar_t a);
 void AddCharacterRef(StringReference *list, wchar_t i);
@@ -458,62 +410,36 @@ vector<wchar_t> *RemoveCharacter(vector<wchar_t> *list, double n);
 wchar_t GetCharacterRef(StringReference *list, double i);
 void RemoveCharacterRef(StringReference *list, double i);
 
-void sWriteStringToStingStream(vector<wchar_t> *stream, NumberReference *index, vector<wchar_t> *src);
-void sWriteCharacterToStingStream(vector<wchar_t> *stream, NumberReference *index, wchar_t src);
-void sWriteBooleanToStingStream(vector<wchar_t> *stream, NumberReference *index, bool src);
+void WriteStringToStingStream(vector<wchar_t> *stream, NumberReference *index, vector<wchar_t> *src);
+void WriteCharacterToStingStream(vector<wchar_t> *stream, NumberReference *index, wchar_t src);
+void WriteBooleanToStingStream(vector<wchar_t> *stream, NumberReference *index, bool src);
 
-bool sSubstringWithCheck(vector<wchar_t> *string, double from, double to, StringReference *stringReference);
-vector<wchar_t> *sSubstring(vector<wchar_t> *string, double from, double to);
-vector<wchar_t> *sAppendString(vector<wchar_t> *s1, vector<wchar_t> *s2);
-vector<wchar_t> *sConcatenateString(vector<wchar_t> *s1, vector<wchar_t> *s2);
-vector<wchar_t> *sAppendCharacter(vector<wchar_t> *string, wchar_t c);
-vector<wchar_t> *sConcatenateCharacter(vector<wchar_t> *string, wchar_t c);
-vector<StringReference*> *sSplitByCharacter(vector<wchar_t> *toSplit, wchar_t splitBy);
-bool sIndexOfCharacter(vector<wchar_t> *string, wchar_t character, NumberReference *indexReference);
-bool sSubstringEqualsWithCheck(vector<wchar_t> *string, double from, vector<wchar_t> *substring, BooleanReference *equalsReference);
-bool sSubstringEquals(vector<wchar_t> *string, double from, vector<wchar_t> *substring);
-bool sIndexOfString(vector<wchar_t> *string, vector<wchar_t> *substring, NumberReference *indexReference);
-bool sContainsCharacter(vector<wchar_t> *string, wchar_t character);
-bool sContainsString(vector<wchar_t> *string, vector<wchar_t> *substring);
-void sToUpperCase(vector<wchar_t> *string);
-void sToLowerCase(vector<wchar_t> *string);
-bool sEqualsIgnoreCase(vector<wchar_t> *a, vector<wchar_t> *b);
-vector<wchar_t> *sReplaceString(vector<wchar_t> *string, vector<wchar_t> *toReplace, vector<wchar_t> *replaceWith);
-vector<wchar_t> *sReplaceCharacterToNew(vector<wchar_t> *string, wchar_t toReplace, wchar_t replaceWith);
-void sReplaceCharacter(vector<wchar_t> *string, wchar_t toReplace, wchar_t replaceWith);
-vector<wchar_t> *sTrim(vector<wchar_t> *string);
-bool sStartsWith(vector<wchar_t> *string, vector<wchar_t> *start);
-bool sEndsWith(vector<wchar_t> *string, vector<wchar_t> *end);
-vector<StringReference*> *sSplitByString(vector<wchar_t> *toSplit, vector<wchar_t> *splitBy);
-bool sStringIsBefore(vector<wchar_t> *a, vector<wchar_t> *b);
-
-void strWriteStringToStingStream(vector<wchar_t> *stream, NumberReference *index, vector<wchar_t> *src);
-void strWriteCharacterToStingStream(vector<wchar_t> *stream, NumberReference *index, wchar_t src);
-void strWriteBooleanToStingStream(vector<wchar_t> *stream, NumberReference *index, bool src);
-
-bool strSubstringWithCheck(vector<wchar_t> *string, double from, double to, StringReference *stringReference);
-vector<wchar_t> *strSubstring(vector<wchar_t> *string, double from, double to);
-vector<wchar_t> *strAppendString(vector<wchar_t> *s1, vector<wchar_t> *s2);
-vector<wchar_t> *strConcatenateString(vector<wchar_t> *s1, vector<wchar_t> *s2);
-vector<wchar_t> *strAppendCharacter(vector<wchar_t> *string, wchar_t c);
-vector<wchar_t> *strConcatenateCharacter(vector<wchar_t> *string, wchar_t c);
-vector<StringReference*> *strSplitByCharacter(vector<wchar_t> *toSplit, wchar_t splitBy);
-bool strIndexOfCharacter(vector<wchar_t> *string, wchar_t character, NumberReference *indexReference);
-bool strSubstringEqualsWithCheck(vector<wchar_t> *string, double from, vector<wchar_t> *substring, BooleanReference *equalsReference);
-bool strSubstringEquals(vector<wchar_t> *string, double from, vector<wchar_t> *substring);
-bool strIndexOfString(vector<wchar_t> *string, vector<wchar_t> *substring, NumberReference *indexReference);
-bool strContainsCharacter(vector<wchar_t> *string, wchar_t character);
-bool strContainsString(vector<wchar_t> *string, vector<wchar_t> *substring);
-void strToUpperCase(vector<wchar_t> *string);
-void strToLowerCase(vector<wchar_t> *string);
-bool strEqualsIgnoreCase(vector<wchar_t> *a, vector<wchar_t> *b);
-vector<wchar_t> *strReplaceString(vector<wchar_t> *string, vector<wchar_t> *toReplace, vector<wchar_t> *replaceWith);
-vector<wchar_t> *strReplaceCharacter(vector<wchar_t> *string, wchar_t toReplace, wchar_t replaceWith);
-vector<wchar_t> *strTrim(vector<wchar_t> *string);
-bool strStartsWith(vector<wchar_t> *string, vector<wchar_t> *start);
-bool strEndsWith(vector<wchar_t> *string, vector<wchar_t> *end);
-vector<StringReference*> *strSplitByString(vector<wchar_t> *toSplit, vector<wchar_t> *splitBy);
-bool strStringIsBefore(vector<wchar_t> *a, vector<wchar_t> *b);
+bool SubstringWithCheck(vector<wchar_t> *string, double from, double to, StringReference *stringReference);
+vector<wchar_t> *Substring(vector<wchar_t> *string, double from, double to);
+vector<wchar_t> *AppendString(vector<wchar_t> *s1, vector<wchar_t> *s2);
+vector<wchar_t> *ConcatenateString(vector<wchar_t> *s1, vector<wchar_t> *s2);
+vector<wchar_t> *AppendCharacter(vector<wchar_t> *string, wchar_t c);
+vector<wchar_t> *ConcatenateCharacter(vector<wchar_t> *string, wchar_t c);
+vector<StringReference*> *SplitByCharacter(vector<wchar_t> *toSplit, wchar_t splitBy);
+bool IndexOfCharacter(vector<wchar_t> *string, wchar_t character, NumberReference *indexReference);
+bool SubstringEqualsWithCheck(vector<wchar_t> *string, double from, vector<wchar_t> *substring, BooleanReference *equalsReference);
+bool SubstringEquals(vector<wchar_t> *string, double from, vector<wchar_t> *substring);
+bool IndexOfString(vector<wchar_t> *string, vector<wchar_t> *substring, NumberReference *indexReference);
+bool ContainsCharacter(vector<wchar_t> *string, wchar_t character);
+bool ContainsString(vector<wchar_t> *string, vector<wchar_t> *substring);
+void ToUpperCase(vector<wchar_t> *string);
+void ToLowerCase(vector<wchar_t> *string);
+bool EqualsIgnoreCase(vector<wchar_t> *a, vector<wchar_t> *b);
+vector<wchar_t> *ReplaceString(vector<wchar_t> *string, vector<wchar_t> *toReplace, vector<wchar_t> *replaceWith);
+vector<wchar_t> *ReplaceCharacterToNew(vector<wchar_t> *string, wchar_t toReplace, wchar_t replaceWith);
+void ReplaceCharacter(vector<wchar_t> *string, wchar_t toReplace, wchar_t replaceWith);
+vector<wchar_t> *Trim(vector<wchar_t> *string);
+bool StartsWith(vector<wchar_t> *string, vector<wchar_t> *start);
+bool EndsWith(vector<wchar_t> *string, vector<wchar_t> *end);
+vector<StringReference*> *SplitByString(vector<wchar_t> *toSplit, vector<wchar_t> *splitBy);
+bool StringIsBefore(vector<wchar_t> *a, vector<wchar_t> *b);
+vector<wchar_t> *JoinStringsWithSeparator(vector<StringReference*> *strings, vector<wchar_t> *separator);
+vector<wchar_t> *JoinStrings(vector<StringReference*> *strings);
 
 vector<double> *StringToNumberArray(vector<wchar_t> *string);
 vector<wchar_t> *NumberArrayToString(vector<double> *array);
@@ -563,86 +489,10 @@ double nCreateNumberFromDecimalString(vector<wchar_t> *string);
 bool nCreateNumberFromStringWithCheck(vector<wchar_t> *string, double base, NumberReference *numberReference, StringReference *errorMessage);
 double nCreateNumberFromParts(double base, bool numberIsPositive, vector<double> *beforePoint, vector<double> *afterPoint, bool exponentIsPositive, vector<double> *exponent);
 bool nExtractPartsFromNumberString(vector<wchar_t> *n, double base, BooleanReference *numberIsPositive, NumberArrayReference *beforePoint, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages);
-bool nExtractPartsFromNumberStringFromSign(vector<wchar_t> *n, double base, double i, NumberArrayReference *beforePoint, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages);
-bool nExtractPartsFromNumberStringFromPointOrExponent(vector<wchar_t> *n, double base, double i, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages);
-bool nExtractPartsFromNumberStringFromExponent(vector<wchar_t> *n, double base, double i, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages);
 double nGetNumberFromNumberCharacterForBase(wchar_t c, double base);
 bool nCharacterIsNumberCharacterInBase(wchar_t c, double base);
 vector<double> *nStringToNumberArray(vector<wchar_t> *str);
 bool nStringToNumberArrayWithCheck(vector<wchar_t> *str, NumberArrayReference *numberArrayReference, StringReference *errorMessage);
-
-vector<double> *lAddNumber(vector<double> *list, double a);
-void lAddNumberRef(NumberArrayReference *list, double i);
-vector<double> *lRemoveNumber(vector<double> *list, double n);
-double lGetNumberRef(NumberArrayReference *list, double i);
-void lRemoveNumberRef(NumberArrayReference *list, double i);
-
-vector<StringReference*> *lAddString(vector<StringReference*> *list, StringReference *a);
-void lAddStringRef(StringArrayReference *list, StringReference *i);
-vector<StringReference*> *lRemoveString(vector<StringReference*> *list, double n);
-StringReference *lGetStringRef(StringArrayReference *list, double i);
-void lRemoveStringRef(StringArrayReference *list, double i);
-
-vector<bool> *lAddBoolean(vector<bool> *list, bool a);
-void lAddBooleanRef(BooleanArrayReference *list, bool i);
-vector<bool> *lRemoveBoolean(vector<bool> *list, double n);
-bool lGetBooleanRef(BooleanArrayReference *list, double i);
-void lRemoveDecimalRef(BooleanArrayReference *list, double i);
-
-
-lLinkedListStrings *lCreateLinkedListString();
-void lLinkedListAddString(lLinkedListStrings *ll, vector<wchar_t> *value);
-vector<StringReference*> *lLinkedListStringsToArray(lLinkedListStrings *ll);
-double lLinkedListStringsLength(lLinkedListStrings *ll);
-void lFreeLinkedListString(lLinkedListStrings *ll);
-
-
-lLinkedListNumbers *lCreateLinkedListNumbers();
-vector<lLinkedListNumbers*> *lCreateLinkedListNumbersArray(double length);
-void lLinkedListAddNumber(lLinkedListNumbers *ll, double value);
-double lLinkedListNumbersLength(lLinkedListNumbers *ll);
-double lLinkedListNumbersIndex(lLinkedListNumbers *ll, double index);
-void lLinkedListInsertNumber(lLinkedListNumbers *ll, double index, double value);
-void lLinkedListSet(lLinkedListNumbers *ll, double index, double value);
-void lLinkedListRemoveNumber(lLinkedListNumbers *ll, double index);
-void lFreeLinkedListNumbers(lLinkedListNumbers *ll);
-void lFreeLinkedListNumbersArray(vector<lLinkedListNumbers*> *lls);
-vector<double> *lLinkedListNumbersToArray(lLinkedListNumbers *ll);
-lLinkedListNumbers *lArrayToLinkedListNumbers(vector<double> *array);
-bool lLinkedListNumbersEqual(lLinkedListNumbers *a, lLinkedListNumbers *b);
-
-lLinkedListCharacters *lCreateLinkedListCharacter();
-void lLinkedListAddCharacter(lLinkedListCharacters *ll, wchar_t value);
-vector<wchar_t> *lLinkedListCharactersToArray(lLinkedListCharacters *ll);
-double lLinkedListCharactersLength(lLinkedListCharacters *ll);
-void lFreeLinkedListCharacter(lLinkedListCharacters *ll);
-
-
-
-lDynamicArrayNumbers *lCreateDynamicArrayNumbers();
-lDynamicArrayNumbers *lCreateDynamicArrayNumbersWithInitialCapacity(double capacity);
-void lDynamicArrayAddNumber(lDynamicArrayNumbers *da, double value);
-void lDynamicArrayNumbersIncreaseSize(lDynamicArrayNumbers *da);
-bool lDynamicArrayNumbersDecreaseSizeNecessary(lDynamicArrayNumbers *da);
-void lDynamicArrayNumbersDecreaseSize(lDynamicArrayNumbers *da);
-double lDynamicArrayNumbersIndex(lDynamicArrayNumbers *da, double index);
-double lDynamicArrayNumbersLength(lDynamicArrayNumbers *da);
-void lDynamicArrayInsertNumber(lDynamicArrayNumbers *da, double index, double value);
-void lDynamicArraySet(lDynamicArrayNumbers *da, double index, double value);
-void lDynamicArrayRemoveNumber(lDynamicArrayNumbers *da, double index);
-void lFreeDynamicArrayNumbers(lDynamicArrayNumbers *da);
-vector<double> *lDynamicArrayNumbersToArray(lDynamicArrayNumbers *da);
-lDynamicArrayNumbers *lArrayToDynamicArrayNumbersWithOptimalSize(vector<double> *array);
-lDynamicArrayNumbers *lArrayToDynamicArrayNumbers(vector<double> *array);
-bool lDynamicArrayNumbersEqual(lDynamicArrayNumbers *a, lDynamicArrayNumbers *b);
-lLinkedListNumbers *lDynamicArrayNumbersToLinkedList(lDynamicArrayNumbers *da);
-lDynamicArrayNumbers *lLinkedListToDynamicArrayNumbers(lLinkedListNumbers *ll);
-
-vector<wchar_t> *lAddCharacter(vector<wchar_t> *list, wchar_t a);
-void lAddCharacterRef(StringReference *list, wchar_t i);
-vector<wchar_t> *lRemoveCharacter(vector<wchar_t> *list, double n);
-wchar_t lGetCharacterRef(StringReference *list, double i);
-void lRemoveCharacterRef(StringReference *list, double i);
 
 double Negate(double x);
 double Positive(double x);
@@ -708,4 +558,6 @@ bool charIsNumber(wchar_t character);
 bool charIsWhiteSpace(wchar_t character);
 bool charIsSymbol(wchar_t character);
 bool charCharacterIsBefore(wchar_t a, wchar_t b);
+wchar_t charDecimalDigitToCharacter(double digit);
+double charCharacterToDecimalDigit(wchar_t c);
 

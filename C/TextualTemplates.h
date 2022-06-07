@@ -1,3 +1,5 @@
+/* Downloaded from https://repo.progsbase.com - Code Developed Using progsbase. */
+
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
@@ -84,27 +86,6 @@ typedef struct LinkedListNodeCharacters LinkedListNodeCharacters;
 
 struct DynamicArrayNumbers;
 typedef struct DynamicArrayNumbers DynamicArrayNumbers;
-
-struct lLinkedListNodeStrings;
-typedef struct lLinkedListNodeStrings lLinkedListNodeStrings;
-
-struct lLinkedListStrings;
-typedef struct lLinkedListStrings lLinkedListStrings;
-
-struct lLinkedListNodeNumbers;
-typedef struct lLinkedListNodeNumbers lLinkedListNodeNumbers;
-
-struct lLinkedListNumbers;
-typedef struct lLinkedListNumbers lLinkedListNumbers;
-
-struct lLinkedListCharacters;
-typedef struct lLinkedListCharacters lLinkedListCharacters;
-
-struct lLinkedListNodeCharacters;
-typedef struct lLinkedListNodeCharacters lLinkedListNodeCharacters;
-
-struct lDynamicArrayNumbers;
-typedef struct lDynamicArrayNumbers lDynamicArrayNumbers;
 
 struct LinkedListNodeNodes{
   _Bool end;
@@ -250,46 +231,6 @@ struct DynamicArrayNumbers{
   double length;
 };
 
-struct lLinkedListNodeStrings{
-  _Bool end;
-  wchar_t *value;
-  size_t valueLength;
-  lLinkedListNodeStrings *next;
-};
-
-struct lLinkedListStrings{
-  lLinkedListNodeStrings *first;
-  lLinkedListNodeStrings *last;
-};
-
-struct lLinkedListNodeNumbers{
-  lLinkedListNodeNumbers *next;
-  _Bool end;
-  double value;
-};
-
-struct lLinkedListNumbers{
-  lLinkedListNodeNumbers *first;
-  lLinkedListNodeNumbers *last;
-};
-
-struct lLinkedListCharacters{
-  lLinkedListNodeCharacters *first;
-  lLinkedListNodeCharacters *last;
-};
-
-struct lLinkedListNodeCharacters{
-  _Bool end;
-  wchar_t value;
-  lLinkedListNodeCharacters *next;
-};
-
-struct lDynamicArrayNumbers{
-  double *array;
-  size_t arrayLength;
-  double length;
-};
-
 LinkedListNodes *CreateLinkedListNodes();
 void LinkedListAddNode(LinkedListNodes *ll, Node *value);
 Node **LinkedListNodesToArray(size_t *returnArrayLength, LinkedListNodes *ll);
@@ -298,7 +239,8 @@ void FreeLinkedListNode(LinkedListNodes *ll);
 
 _Bool IsValidTemplate(wchar_t *template, size_t templateLength);
 _Bool GenerateTokensFromTemplate(wchar_t *template, size_t templateLength, LinkedListStrings *tokens, StringReference *errorMessage);
-_Bool GenerateDocument(wchar_t *template, size_t templateLength, Element *data, StringReference *document, StringReference *errorMessage);
+_Bool GenerateDocument(wchar_t *template, size_t templateLength, wchar_t *json, size_t jsonLength, StringReference *document, StringReference *errorMessage);
+_Bool GenerateDocumentBasedOnElement(wchar_t *template, size_t templateLength, Element *data, StringReference *document, StringReference *errorMessage);
 _Bool GenerateDocumentFromBlock(Node *root, Element *data, LinkedListCharacters *ll, StringReference *errorMessage);
 _Bool GenerateDocumentFromNode(Node *n, Element *data, LinkedListCharacters *ll, StringReference *errorMessage);
 _Bool GenerateDocumentFromUse(Node *n, Element *data, LinkedListCharacters *ll, StringReference *errorMessage);
@@ -312,6 +254,7 @@ _Bool ParseForeachBlock(StringReference **tokens, size_t tokensLength, NumberRef
 _Bool ParseNodeString(wchar_t *token, size_t tokenLength, Node *node, StringReference *errorMessage);
 
 double test();
+void testGenerateDocument8(NumberReference *failures);
 void testTokenGeneration(NumberReference *failures);
 void testGenerateDocument1(NumberReference *failures);
 void testGenerateDocument2(NumberReference *failures);
@@ -501,6 +444,8 @@ DynamicArrayNumbers *ArrayToDynamicArrayNumbers(double *array, size_t arrayLengt
 _Bool DynamicArrayNumbersEqual(DynamicArrayNumbers *a, DynamicArrayNumbers *b);
 LinkedListNumbers *DynamicArrayNumbersToLinkedList(DynamicArrayNumbers *da);
 DynamicArrayNumbers *LinkedListToDynamicArrayNumbers(LinkedListNumbers *ll);
+double DynamicArrayNumbersIndexOf(DynamicArrayNumbers *arr, double n, BooleanReference *foundReference);
+_Bool DynamicArrayNumbersIsInArray(DynamicArrayNumbers *arr, double n);
 
 wchar_t *AddCharacter(size_t *returnArrayLength, wchar_t *list, size_t listLength, wchar_t a);
 void AddCharacterRef(StringReference *list, wchar_t i);
@@ -508,62 +453,36 @@ wchar_t *RemoveCharacter(size_t *returnArrayLength, wchar_t *list, size_t listLe
 wchar_t GetCharacterRef(StringReference *list, double i);
 void RemoveCharacterRef(StringReference *list, double i);
 
-void sWriteStringToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, wchar_t *src, size_t srcLength);
-void sWriteCharacterToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, wchar_t src);
-void sWriteBooleanToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, _Bool src);
+void WriteStringToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, wchar_t *src, size_t srcLength);
+void WriteCharacterToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, wchar_t src);
+void WriteBooleanToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, _Bool src);
 
-_Bool sSubstringWithCheck(wchar_t *string, size_t stringLength, double from, double to, StringReference *stringReference);
-wchar_t *sSubstring(size_t *returnArrayLength, wchar_t *string, size_t stringLength, double from, double to);
-wchar_t *sAppendString(size_t *returnArrayLength, wchar_t *s1, size_t s1Length, wchar_t *s2, size_t s2Length);
-wchar_t *sConcatenateString(size_t *returnArrayLength, wchar_t *s1, size_t s1Length, wchar_t *s2, size_t s2Length);
-wchar_t *sAppendCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t c);
-wchar_t *sConcatenateCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t c);
-StringReference **sSplitByCharacter(size_t *returnArrayLength, wchar_t *toSplit, size_t toSplitLength, wchar_t splitBy);
-_Bool sIndexOfCharacter(wchar_t *string, size_t stringLength, wchar_t character, NumberReference *indexReference);
-_Bool sSubstringEqualsWithCheck(wchar_t *string, size_t stringLength, double from, wchar_t *substring, size_t substringLength, BooleanReference *equalsReference);
-_Bool sSubstringEquals(wchar_t *string, size_t stringLength, double from, wchar_t *substring, size_t substringLength);
-_Bool sIndexOfString(wchar_t *string, size_t stringLength, wchar_t *substring, size_t substringLength, NumberReference *indexReference);
-_Bool sContainsCharacter(wchar_t *string, size_t stringLength, wchar_t character);
-_Bool sContainsString(wchar_t *string, size_t stringLength, wchar_t *substring, size_t substringLength);
-void sToUpperCase(wchar_t *string, size_t stringLength);
-void sToLowerCase(wchar_t *string, size_t stringLength);
-_Bool sEqualsIgnoreCase(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength);
-wchar_t *sReplaceString(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t *toReplace, size_t toReplaceLength, wchar_t *replaceWith, size_t replaceWithLength);
-wchar_t *sReplaceCharacterToNew(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t toReplace, wchar_t replaceWith);
-void sReplaceCharacter(wchar_t *string, size_t stringLength, wchar_t toReplace, wchar_t replaceWith);
-wchar_t *sTrim(size_t *returnArrayLength, wchar_t *string, size_t stringLength);
-_Bool sStartsWith(wchar_t *string, size_t stringLength, wchar_t *start, size_t startLength);
-_Bool sEndsWith(wchar_t *string, size_t stringLength, wchar_t *end, size_t endLength);
-StringReference **sSplitByString(size_t *returnArrayLength, wchar_t *toSplit, size_t toSplitLength, wchar_t *splitBy, size_t splitByLength);
-_Bool sStringIsBefore(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength);
-
-void strWriteStringToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, wchar_t *src, size_t srcLength);
-void strWriteCharacterToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, wchar_t src);
-void strWriteBooleanToStingStream(wchar_t *stream, size_t streamLength, NumberReference *index, _Bool src);
-
-_Bool strSubstringWithCheck(wchar_t *string, size_t stringLength, double from, double to, StringReference *stringReference);
-wchar_t *strSubstring(size_t *returnArrayLength, wchar_t *string, size_t stringLength, double from, double to);
-wchar_t *strAppendString(size_t *returnArrayLength, wchar_t *s1, size_t s1Length, wchar_t *s2, size_t s2Length);
-wchar_t *strConcatenateString(size_t *returnArrayLength, wchar_t *s1, size_t s1Length, wchar_t *s2, size_t s2Length);
-wchar_t *strAppendCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t c);
-wchar_t *strConcatenateCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t c);
-StringReference **strSplitByCharacter(size_t *returnArrayLength, wchar_t *toSplit, size_t toSplitLength, wchar_t splitBy);
-_Bool strIndexOfCharacter(wchar_t *string, size_t stringLength, wchar_t character, NumberReference *indexReference);
-_Bool strSubstringEqualsWithCheck(wchar_t *string, size_t stringLength, double from, wchar_t *substring, size_t substringLength, BooleanReference *equalsReference);
-_Bool strSubstringEquals(wchar_t *string, size_t stringLength, double from, wchar_t *substring, size_t substringLength);
-_Bool strIndexOfString(wchar_t *string, size_t stringLength, wchar_t *substring, size_t substringLength, NumberReference *indexReference);
-_Bool strContainsCharacter(wchar_t *string, size_t stringLength, wchar_t character);
-_Bool strContainsString(wchar_t *string, size_t stringLength, wchar_t *substring, size_t substringLength);
-void strToUpperCase(wchar_t *string, size_t stringLength);
-void strToLowerCase(wchar_t *string, size_t stringLength);
-_Bool strEqualsIgnoreCase(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength);
-wchar_t *strReplaceString(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t *toReplace, size_t toReplaceLength, wchar_t *replaceWith, size_t replaceWithLength);
-wchar_t *strReplaceCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t toReplace, wchar_t replaceWith);
-wchar_t *strTrim(size_t *returnArrayLength, wchar_t *string, size_t stringLength);
-_Bool strStartsWith(wchar_t *string, size_t stringLength, wchar_t *start, size_t startLength);
-_Bool strEndsWith(wchar_t *string, size_t stringLength, wchar_t *end, size_t endLength);
-StringReference **strSplitByString(size_t *returnArrayLength, wchar_t *toSplit, size_t toSplitLength, wchar_t *splitBy, size_t splitByLength);
-_Bool strStringIsBefore(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength);
+_Bool SubstringWithCheck(wchar_t *string, size_t stringLength, double from, double to, StringReference *stringReference);
+wchar_t *Substring(size_t *returnArrayLength, wchar_t *string, size_t stringLength, double from, double to);
+wchar_t *AppendString(size_t *returnArrayLength, wchar_t *s1, size_t s1Length, wchar_t *s2, size_t s2Length);
+wchar_t *ConcatenateString(size_t *returnArrayLength, wchar_t *s1, size_t s1Length, wchar_t *s2, size_t s2Length);
+wchar_t *AppendCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t c);
+wchar_t *ConcatenateCharacter(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t c);
+StringReference **SplitByCharacter(size_t *returnArrayLength, wchar_t *toSplit, size_t toSplitLength, wchar_t splitBy);
+_Bool IndexOfCharacter(wchar_t *string, size_t stringLength, wchar_t character, NumberReference *indexReference);
+_Bool SubstringEqualsWithCheck(wchar_t *string, size_t stringLength, double from, wchar_t *substring, size_t substringLength, BooleanReference *equalsReference);
+_Bool SubstringEquals(wchar_t *string, size_t stringLength, double from, wchar_t *substring, size_t substringLength);
+_Bool IndexOfString(wchar_t *string, size_t stringLength, wchar_t *substring, size_t substringLength, NumberReference *indexReference);
+_Bool ContainsCharacter(wchar_t *string, size_t stringLength, wchar_t character);
+_Bool ContainsString(wchar_t *string, size_t stringLength, wchar_t *substring, size_t substringLength);
+void ToUpperCase(wchar_t *string, size_t stringLength);
+void ToLowerCase(wchar_t *string, size_t stringLength);
+_Bool EqualsIgnoreCase(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength);
+wchar_t *ReplaceString(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t *toReplace, size_t toReplaceLength, wchar_t *replaceWith, size_t replaceWithLength);
+wchar_t *ReplaceCharacterToNew(size_t *returnArrayLength, wchar_t *string, size_t stringLength, wchar_t toReplace, wchar_t replaceWith);
+void ReplaceCharacter(wchar_t *string, size_t stringLength, wchar_t toReplace, wchar_t replaceWith);
+wchar_t *Trim(size_t *returnArrayLength, wchar_t *string, size_t stringLength);
+_Bool StartsWith(wchar_t *string, size_t stringLength, wchar_t *start, size_t startLength);
+_Bool EndsWith(wchar_t *string, size_t stringLength, wchar_t *end, size_t endLength);
+StringReference **SplitByString(size_t *returnArrayLength, wchar_t *toSplit, size_t toSplitLength, wchar_t *splitBy, size_t splitByLength);
+_Bool StringIsBefore(wchar_t *a, size_t aLength, wchar_t *b, size_t bLength);
+wchar_t *JoinStringsWithSeparator(size_t *returnArrayLength, StringReference **strings, size_t stringsLength, wchar_t *separator, size_t separatorLength);
+wchar_t *JoinStrings(size_t *returnArrayLength, StringReference **strings, size_t stringsLength);
 
 double *StringToNumberArray(size_t *returnArrayLength, wchar_t *string, size_t stringLength);
 wchar_t *NumberArrayToString(size_t *returnArrayLength, double *array, size_t arrayLength);
@@ -613,86 +532,10 @@ double nCreateNumberFromDecimalString(wchar_t *string, size_t stringLength);
 _Bool nCreateNumberFromStringWithCheck(wchar_t *string, size_t stringLength, double base, NumberReference *numberReference, StringReference *errorMessage);
 double nCreateNumberFromParts(double base, _Bool numberIsPositive, double *beforePoint, size_t beforePointLength, double *afterPoint, size_t afterPointLength, _Bool exponentIsPositive, double *exponent, size_t exponentLength);
 _Bool nExtractPartsFromNumberString(wchar_t *n, size_t nLength, double base, BooleanReference *numberIsPositive, NumberArrayReference *beforePoint, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages);
-_Bool nExtractPartsFromNumberStringFromSign(wchar_t *n, size_t nLength, double base, double i, NumberArrayReference *beforePoint, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages);
-_Bool nExtractPartsFromNumberStringFromPointOrExponent(wchar_t *n, size_t nLength, double base, double i, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages);
-_Bool nExtractPartsFromNumberStringFromExponent(wchar_t *n, size_t nLength, double base, double i, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages);
 double nGetNumberFromNumberCharacterForBase(wchar_t c, double base);
 _Bool nCharacterIsNumberCharacterInBase(wchar_t c, double base);
 double *nStringToNumberArray(size_t *returnArrayLength, wchar_t *str, size_t strLength);
 _Bool nStringToNumberArrayWithCheck(wchar_t *str, size_t strLength, NumberArrayReference *numberArrayReference, StringReference *errorMessage);
-
-double *lAddNumber(size_t *returnArrayLength, double *list, size_t listLength, double a);
-void lAddNumberRef(NumberArrayReference *list, double i);
-double *lRemoveNumber(size_t *returnArrayLength, double *list, size_t listLength, double n);
-double lGetNumberRef(NumberArrayReference *list, double i);
-void lRemoveNumberRef(NumberArrayReference *list, double i);
-
-StringReference **lAddString(size_t *returnArrayLength, StringReference **list, size_t listLength, StringReference *a);
-void lAddStringRef(StringArrayReference *list, StringReference *i);
-StringReference **lRemoveString(size_t *returnArrayLength, StringReference **list, size_t listLength, double n);
-StringReference *lGetStringRef(StringArrayReference *list, double i);
-void lRemoveStringRef(StringArrayReference *list, double i);
-
-_Bool *lAddBoolean(size_t *returnArrayLength, _Bool *list, size_t listLength, _Bool a);
-void lAddBooleanRef(BooleanArrayReference *list, _Bool i);
-_Bool *lRemoveBoolean(size_t *returnArrayLength, _Bool *list, size_t listLength, double n);
-_Bool lGetBooleanRef(BooleanArrayReference *list, double i);
-void lRemoveDecimalRef(BooleanArrayReference *list, double i);
-
-
-lLinkedListStrings *lCreateLinkedListString();
-void lLinkedListAddString(lLinkedListStrings *ll, wchar_t *value, size_t valueLength);
-StringReference **lLinkedListStringsToArray(size_t *returnArrayLength, lLinkedListStrings *ll);
-double lLinkedListStringsLength(lLinkedListStrings *ll);
-void lFreeLinkedListString(lLinkedListStrings *ll);
-
-
-lLinkedListNumbers *lCreateLinkedListNumbers();
-lLinkedListNumbers **lCreateLinkedListNumbersArray(size_t *returnArrayLength, double length);
-void lLinkedListAddNumber(lLinkedListNumbers *ll, double value);
-double lLinkedListNumbersLength(lLinkedListNumbers *ll);
-double lLinkedListNumbersIndex(lLinkedListNumbers *ll, double index);
-void lLinkedListInsertNumber(lLinkedListNumbers *ll, double index, double value);
-void lLinkedListSet(lLinkedListNumbers *ll, double index, double value);
-void lLinkedListRemoveNumber(lLinkedListNumbers *ll, double index);
-void lFreeLinkedListNumbers(lLinkedListNumbers *ll);
-void lFreeLinkedListNumbersArray(lLinkedListNumbers **lls, size_t llsLength);
-double *lLinkedListNumbersToArray(size_t *returnArrayLength, lLinkedListNumbers *ll);
-lLinkedListNumbers *lArrayToLinkedListNumbers(double *array, size_t arrayLength);
-_Bool lLinkedListNumbersEqual(lLinkedListNumbers *a, lLinkedListNumbers *b);
-
-lLinkedListCharacters *lCreateLinkedListCharacter();
-void lLinkedListAddCharacter(lLinkedListCharacters *ll, wchar_t value);
-wchar_t *lLinkedListCharactersToArray(size_t *returnArrayLength, lLinkedListCharacters *ll);
-double lLinkedListCharactersLength(lLinkedListCharacters *ll);
-void lFreeLinkedListCharacter(lLinkedListCharacters *ll);
-
-
-
-lDynamicArrayNumbers *lCreateDynamicArrayNumbers();
-lDynamicArrayNumbers *lCreateDynamicArrayNumbersWithInitialCapacity(double capacity);
-void lDynamicArrayAddNumber(lDynamicArrayNumbers *da, double value);
-void lDynamicArrayNumbersIncreaseSize(lDynamicArrayNumbers *da);
-_Bool lDynamicArrayNumbersDecreaseSizeNecessary(lDynamicArrayNumbers *da);
-void lDynamicArrayNumbersDecreaseSize(lDynamicArrayNumbers *da);
-double lDynamicArrayNumbersIndex(lDynamicArrayNumbers *da, double index);
-double lDynamicArrayNumbersLength(lDynamicArrayNumbers *da);
-void lDynamicArrayInsertNumber(lDynamicArrayNumbers *da, double index, double value);
-void lDynamicArraySet(lDynamicArrayNumbers *da, double index, double value);
-void lDynamicArrayRemoveNumber(lDynamicArrayNumbers *da, double index);
-void lFreeDynamicArrayNumbers(lDynamicArrayNumbers *da);
-double *lDynamicArrayNumbersToArray(size_t *returnArrayLength, lDynamicArrayNumbers *da);
-lDynamicArrayNumbers *lArrayToDynamicArrayNumbersWithOptimalSize(double *array, size_t arrayLength);
-lDynamicArrayNumbers *lArrayToDynamicArrayNumbers(double *array, size_t arrayLength);
-_Bool lDynamicArrayNumbersEqual(lDynamicArrayNumbers *a, lDynamicArrayNumbers *b);
-lLinkedListNumbers *lDynamicArrayNumbersToLinkedList(lDynamicArrayNumbers *da);
-lDynamicArrayNumbers *lLinkedListToDynamicArrayNumbers(lLinkedListNumbers *ll);
-
-wchar_t *lAddCharacter(size_t *returnArrayLength, wchar_t *list, size_t listLength, wchar_t a);
-void lAddCharacterRef(StringReference *list, wchar_t i);
-wchar_t *lRemoveCharacter(size_t *returnArrayLength, wchar_t *list, size_t listLength, double n);
-wchar_t lGetCharacterRef(StringReference *list, double i);
-void lRemoveCharacterRef(StringReference *list, double i);
 
 double Negate(double x);
 double Positive(double x);
@@ -758,3 +601,6 @@ _Bool charIsNumber(wchar_t character);
 _Bool charIsWhiteSpace(wchar_t character);
 _Bool charIsSymbol(wchar_t character);
 _Bool charCharacterIsBefore(wchar_t a, wchar_t b);
+wchar_t charDecimalDigitToCharacter(double digit);
+double charCharacterToDecimalDigit(wchar_t c);
+

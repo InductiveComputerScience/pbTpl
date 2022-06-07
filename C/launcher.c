@@ -41,7 +41,7 @@ int main(int argc, char **argv){
 							data = elRef->element;
 
 							errorMessage = CreateStringReference(L"", 0);
-							success = GenerateDocument(template, templateLength, data, document, errorMessage);
+							success = GenerateDocumentBasedOnElement(template, templateLength, data, document, errorMessage);
 							// ----------------
 
 							if(success){
