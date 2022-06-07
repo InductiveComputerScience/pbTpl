@@ -15,22 +15,27 @@ A template library available in many programming languages. Goals of this librar
 [Python](Python/) | 
 [Ruby](Ruby/)
 
+## Main Function
+The library is available in the programming languages above. The main function for using a template is as follows:
+
+```
+boolean GenerateDocument(char [] template, Element data, StringReference document, StringReference errorMessage)
+```
+
+This function takes a template `template` and a parsed JSON structure `data`. It returns true on success or false on failure. On success, `document.string` is set to the result, if not `errorMessage.string` is filled with an error message.
+
+To parse a JSON string into an `Element` structure, use:
+
+```
+public static boolean ReadJSON(char [] string, ElementReference elementReference, StringArrayReference errorMessages)
+```
+
+Here, `string` is the JSON string. The function returns true on success and false on failure. If success, `elementReference.element` is set to the the result, if not `errorMessages.stringArray` is filled with error messages.
+
 ## General User Guide
 A textual template is text with certain parts left out that will be filled in by a generation step. The source for filling in is a data structure generated from a JSON file.
 
 Templates are used for many different things in production systems. Most websites are generated based on a template, be it directly in the front end, such as with Angular, React and Vue, or in the backend. Templates are also used for production of formal documents and emails.
-
-### How to Work with Templates
-There are three main issues with using templates:
-
-#### The data model
-Generate all the data that is to be filled into the document. This includes decision variables if some information is included or left out based on conditions.
-
-#### Templates
-Write the template with the tags to fill in information. There is no need for complex logic or formatting commands, as this should be taken care of during data model generation. The reason is that the code should be in the code and not in the template.
-
-#### Locale and Formatting
-Special formatting of numbers should be taken care of during data model generation. This is better as a full fledged programming language is available.
 
 ### Tags and Their Functions
 
@@ -68,4 +73,18 @@ This will iterate over all elements of the array `b`. Each element will be known
 If a is true, the first block is printed, else the else block. The else block is optional.
 
 ### Escape
-If you want to output `{` followed directly by one of the command strings, use a backslash in front. If the `{` is not followed directly by one of the command, the text is simply output.
+If you want to output `{` followed directly by one of the command strings, use a backslash in front. If the `{` is not followed directly by one of the commands, the text is simply output.
+
+### How to Work with Templates
+There are three main issues with using templates:
+
+#### The data model
+Generate all the data that is to be filled into the document. This includes decision variables if some information is included or left out based on conditions.
+
+#### Templates
+Write the template with the tags to fill in information. There is no need for complex logic or formatting commands, as this should be taken care of during data model generation. The reason is that the code should be in the code and not in the template.
+
+#### Locale and Formatting
+Special formatting of numbers should be taken care of during data model generation. This is better as a full fledged programming language is available.
+
+
