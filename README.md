@@ -1,9 +1,14 @@
 # pbTpl - pb Templates
-A template library available in many programming languages made with progsbase. The goals of this library are to 
+A template library available in many programming languages made with [progsbase](https://progsbase.com/). The goals of this library are to 
 
 1) Have a single library for templating that is stable accross programming languages and over time.
 2) Is easy to build in any programming language and to include in any project.
 3) Is easy to use.
+
+
+## Try Online
+Try the library [online here](https://repo.progsbase.com/repoviewer/no.inductive.libraries/TextualTemplates/0.1.10///GenerateDocument/).
+
 
 
 ## Available in the Following Languages
