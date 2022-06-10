@@ -13,26 +13,53 @@ Try the library [online here](https://repo.progsbase.com/repoviewer/no.inductive
 
 ## Available in the Following Languages
 
-[TypeScript](TypeScript/) |
-[Java](Java/) |
-[C](C/) | 
-[C++](Cpp/) | 
-[JavaScript](JavaScript/) | 
-[PHP](PHP/) | 
-[C#](CS/) | 
-[Python](Python/) | 
-[Ruby](Ruby/) |
-[Visual Basic](VisualBasic/)
-
+ * [TypeScript](TypeScript/)
+ * [Java](Java/)
+ * [C](C/)
+ * [C++](Cpp/)
+ * [JavaScript](JavaScript/)
+ * [PHP](PHP/)
+ * [C#](CS/)
+ * [Python](Python/)
+ * [Ruby](Ruby/)
+ * [Visual Basic](VisualBasic/)
 
 ## Main Function
 The library is available in the programming languages above. The main function for using a template is as follows:
 
 ```
-boolean GenerateDocument(char [] template, char [] json, StringReference document, StringReference errorMessage);
+TypeScript:
+function GenerateDocument(template : string [], json : string [], document : StringReference, errorMessage : StringReference) : boolean
+
+Java:
+boolean GenerateDocument(char [] template, char [] json, StringReference document, StringReference errorMessage)
+
+C:
+_Bool GenerateDocument(wchar_t *template, size_t templateLength, wchar_t *json, size_t jsonLength, StringReference *document, StringReference *errorMessage)
+
+C++:
+bool GenerateDocument(vector<wchar_t> *templatex, vector<wchar_t> *json, StringReference *document, StringReference *errorMessage)
+
+JavaScript:
+function GenerateDocument(template, json, document, errorMessage)
+
+PHP:
+function GenerateDocument(&$template, &$json, $document, $errorMessage)
+
+C#:
+bool GenerateDocument(char [] template, char [] json, StringReference document, StringReference errorMessage)
+
+Python:
+def GenerateDocument(template, json, document, errorMessage)
+
+Ruby:
+def GenerateDocument(template, json, document, errorMessage)
+
+Visual Basic:
+Function GenerateDocument(ByRef template As Char (), ByRef json As Char (), ByRef document As StringReference, ByRef errorMessage As StringReference) As Boolean
 ```
 
-This function takes a template string `template` and JSON string `json`. It returns true on success or false on failure. On success, `document.string` is set to the result; on failure `errorMessage.string` is filled with an error message.
+This function works exactly the same way in all the languages. It takes a template string `template` and JSON string `json`. It returns true on success or false on failure. On success, `document.string` is set to the result; on failure `errorMessage.string` is filled with an error message.
 
 
 ## General About Templates
